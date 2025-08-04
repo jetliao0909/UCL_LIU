@@ -58,5 +58,17 @@ class kit:
         "9.【　】啟動預設為「肥」模式":"9. [   ] Boot default to \"UCL\" mode",
         "10.【●】允許(Shift+Space)切換 全形/半形":"10. [ o ] Enable (Shift_Space) Switch Half/Full mode",
         "10.【　】允許(Shift+Space)切換 全形/半形":"10. [   ] Enable (Shift_Space) Switch Half/Full mode",
-        "11. 離開(Quit)":"11. Quit"
+        "11. 自定詞庫":"11. Custom Dictionary",
+        "12. 離開(Quit)":"12. Quit",
+        "自定字詞功能": "Custom Dictionary Function",
+        "字根：": "Word Root: ",
+        "出字詞：": "Output Words: ",
+        "儲存": "Save",
+        "字詞(點二下可以編修)": "Words (Double-click to edit)",
+        "編輯／刪除": "Edit/Delete",
+        "請選擇要對「":"Please select the word to \"",
+        "」做什麼？": "\" what to do?",
+        "編輯": "Edit",
+        "刪除": "Delete",
+        "取消": "Cancel"
     }

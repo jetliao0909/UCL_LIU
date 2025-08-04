@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-VERSION = "1.62"
+VERSION = "1.63"
 import os
 #os.environ['PYTHONIOENCODING'] = 'utf-8'
 #os.environ['PYTHONUTF8'] = '1'
@@ -72,6 +72,10 @@ import clip
 # 改用 i18n
 import myi18n
 my18 = myi18n.kit()
+
+# 2025-08-03 加入自定詞庫畫面
+import custom_dict_window
+
 #print my18.auto('test')
 #sys.exit()
 
@@ -1628,8 +1632,9 @@ def x_btn_click(self):
   sys.exit()
 # draggable
 def winclicked(self, event):
-  # make UCLLIU can draggable  
+  # make UCLLIU can draggable    
   self.window.begin_move_drag(event.button, int(event.x_root), int(event.y_root), event.time)
+  #return
   #self.window.begin_move_drag(event.button, int(event.x_root), int(event.y_root), event.time)
   #self.window.begin_resize_drag(event.button, int(event.x_root), int(event.y_root), event.time)
   # Write to UCLLIU.ini
@@ -3329,11 +3334,18 @@ hm.HookKeyboard()
 
         
 #win=gtk.Window(type=gtk.WINDOW_POPUP)
-win=gtk.Window(type=gtk.WINDOW_POPUP)
+# 2025-08-03
+
+
+# win 得用 gtk.WINDOW_POPUP 下面 taskbar 才不會多一個視窗
+win=gtk.Window(type=gtk.WINDOW_POPUP) # WINDOW_TOPLEVEL WINDOW_POPUP
 win.set_modal(True)
 win.set_resizable(False)
 
 
+#win.show_all()
+
+#
 
 #win.move(screen_width-700,int(screen_height*0.87))
 win.move( int(config["DEFAULT"]["X"]) , int(config["DEFAULT"]["Y"]))
@@ -3347,11 +3359,9 @@ win.set_accept_focus(False)
 win.set_icon_name(None)
 
 win.add_events( gdk.BUTTON_PRESS_MASK)
-win.connect ('button-press-event', winclicked)
-
+win.connect('button-press-event', winclicked)
 
 vbox = gtk.VBox(False)
-
 hbox=gtk.HBox()
 vbox.pack_start(hbox, False)
 
@@ -3397,6 +3407,8 @@ simple_label.modify_font(pango.FontDescription(GUI_FONT_16))
 #simple_label.set_alignment(xalign=0.05, yalign=0.5)
 f_word = gtk.Frame()
 f_word.add(simple_btn)
+# default not show for 正體
+
 hbox.add(f_word)
 
 
@@ -3446,7 +3458,23 @@ class TrayIcon():
         my.file_put_contents(ICON_PATH,raw_data,False)
       except:
         pass
-      self.reload_tray()            
+      self.reload_tray()    
+   
+      
+    def _menu_custom_dict(self,event,data=None):
+      # 開啟自定詞庫功能
+      # 2025-08-03
+      # 出現自定詞庫 GUI 畫面
+      # 從任意 thread 呼叫時：
+      #gobject.idle_add(self.open_custom_dict_window_in_ui_thread)  
+      #self.open_custom_dict_window_in_ui_thread()
+      #global custom_win
+      #if not custom_win:
+      my_custom = custom_dict_window.CustomDictWindow()      
+      #custom_win.show_all()
+      
+
+      # 可以移動視窗位置
     def reload_tray(self):
       global config
       global ICON_PATH
@@ -3616,8 +3644,8 @@ class TrayIcon():
         menu_options = menu_options + ((
           (my18.auto("10.【　】允許(Shift+Space)切換 全形/半形"), None, [self.m_halffull_switch] ),          
         ))
-        
-      menu_options = menu_options + ((my18.auto("11. 離開(Quit)"), None, [self.m_quit]),)
+      menu_options = menu_options + ((my18.auto("11. 自定詞庫"), None, [self._menu_custom_dict]),)
+      menu_options = menu_options + ((my18.auto("12. 離開(Quit)"), None, [self.m_quit]),)
       if self.systray=="":
         #ICON_PATH
         #UCL_PIC_BASE64
@@ -3772,8 +3800,7 @@ class TrayIcon():
 tray = TrayIcon()
 
 
-win.show_all()
-simple_btn.set_visible(False)
+
 
 if config["DEFAULT"]["SHORT_MODE"] == "1":
   run_short()
@@ -3782,11 +3809,32 @@ else:
   
 
 
+#custom_win = gtk.Window(type=gtk.WINDOW_TOPLEVEL)
+#custom_win.set_modal(True)
+win.show_all()
+
+
+# here for 正體中文!!!
+simple_btn.set_visible(False)
+
 win.set_focus(None)
+
 
 # 初使化按二次
 #uclen_btn_click(uclen_btn)
 #uclen_btn_click(uclen_btn)
+##################################################################################
+# 2025-08-04 Add Custom Dict Window
+##################################################################################
+
+
+
+
+
+
+
+
+
 
 #set_interval(1)
 if config['DEFAULT']['STARTUP_DEFAULT_UCL'] == "0":
@@ -3798,16 +3846,34 @@ def updateGUI():
   global updateGUI_Step
   #global is_shutdown
   while gtk.events_pending():
-    gtk.main_iteration(False)
+    gtk.main_iteration(True)
   updateGUI_Step = updateGUI_Step + 1
   if updateGUI_Step % 100 == 0:
     updateGUI_Step = 0
     toAlphaOrNonAlpha()
-while True:
-  time.sleep(0.01)
+
+#while True:
+  #time.sleep(0.01)
   #debug_print("gg")
-  updateGUI()
-        
+  #print("GGGGG")
+  #updateGUI()
+def updateGUILoop():
+  while True:
+    time.sleep(0.01)
+    #debug_print("gg")
+    #print("GGGGG")
+    updateGUI()    
+#thread.start_new_thread( updateGUILoop,(),)
+updateGUILoop()
+#gobject.idle_add(updateGUILoop)  
+#gtk.main()
+#gtk.main()
+
+#updateGUILoop()
+#while True:
+#  time.sleep(0.01)  
+#gtk.main()     
 pythoncom.PumpMessages()     
 
+#print("GGGG")
 #mainloop()

@@ -1171,7 +1171,6 @@ uclcode_orin = my.json_decode(my.file_get_contents(PWD + "\\liu.json")) # 載入
 
 def load_word_root():  
   # 載入字根檔
-  global ___step
   global uclcode
   global uclcode_r
   global uclcode_rr

@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 VERSION = "1.63"
 import __main__  # 取得自己
-from doctest import debug
+#from doctest import debug
 import os
-from tkinter import TOP
 #os.environ['PYTHONIOENCODING'] = 'utf-8'
 #os.environ['PYTHONUTF8'] = '1'
 import portalocker

@@ -53,18 +53,18 @@ class kit:
         import os
         if self.is_file(filename)==True:
           os.remove(filename)    
-    def file_get_contents(self,data_path):       
+    def file_get_contents(self,data_path):        
         try:
-          return open(data_path,encoding = 'utf8', mode='r').read()
+          return open(data_path,encoding = 'utf8').read()
         except:
-          return open(data_path, mode='r').read()
-    def file_put_contents(self,filename,data,IS_APPEND=False):        
+          return open(data_path).read()
+    def file_put_contents(self,filename,data,IS_APPEND=False):
         f = "";
         if IS_APPEND==True:
           f = open(filename, 'a');
         else:
           f = open(filename, 'wb');
-        f.write(data)        
+        f.write(data)
         f.close()
     def exit(self):
         import sys

@@ -70,5 +70,6 @@ class kit:
         "」做什麼？": "\" what to do?",
         "編輯": "Edit",
         "刪除": "Delete",
-        "取消": "Cancel"
+        "取消": "Cancel",
+        "項次": "Item No."
     }

@@ -24,7 +24,7 @@
 <h3>最初開發日期：</h3>2017-06-16 11:24<br>
 <h3>最後更新日期：</h3>2025-06-22 00:35
 <br>
-<h3>版本：</h3>V 1.62<br>
+<h3>版本：</h3>V 1.63<br>
 <br>
 <h3>版權：</h3>
 　完全免費的 MIT-License
@@ -33,10 +33,10 @@
 </center>
 <h3>下載位置：</h3>
 <h3>～～提醒：如果遇到無法使用肥米的視窗，請關閉肥米輸入法，按右鍵，改用「系統管理員身分執行肥米輸入法」，應該就可以克服!!～～</h3>
-　　1.主程式(1.62 beta 版)：<a download="uclliu.exe" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.exe">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.exe</a><br>	
-　　2.主程式(1.62 beta 版 zip 版)：<a download="uclliu.zip" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.zip">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.zip</a><br>	
-　　3.主程式(1.61 穩定版)：<a download="uclliu.exe" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.61/uclliu.exe">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.61/uclliu.exe</a><br>
-　　4.主程式(1.61 穩定版 zip 版)：<a download="uclliu.zip" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.61/uclliu.zip">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.61/uclliu.zip</a><br>
+　　1.主程式(1.63 beta 版)：<a download="uclliu.exe" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.exe">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.exe</a><br>	
+　　2.主程式(1.63 beta 版 zip 版)：<a download="uclliu.zip" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.zip">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.zip</a><br>	
+　　3.主程式(1.62 穩定版)：<a download="uclliu.exe" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.62/uclliu.exe">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.62/uclliu.exe</a><br>
+　　4.主程式(1.62 穩定版 zip 版)：<a download="uclliu.zip" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.62/uclliu.zip">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.62/uclliu.zip</a><br>
 　　5.歷年版本：<a target="_blank" href="https://github.com/shadowjohn/UCL_LIU/tree/master/RELEASE">歷代版本</a><br>
 　　6.同音字庫：<a download="pinyi.txt" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/pinyi.txt">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/pinyi.txt</a><br>
 　　7.打字聲音：<a download="pinyi.txt" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/wavs/wavs.zip">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/wavs/wavs.zip</a> 下載後解開，0~9.wav 與 uclliu.exe 放一起
@@ -146,7 +146,13 @@ Windows 顯示語言：中文（台灣）<br>
 	</kbd>
 <br>
 <pre>
-	(2023-11-01) v1.62 版：
+	(2023-11-01) v1.63 版：
+	病毒碼提交掃描：1.63
+	1. 77、自定詞庫功能初步完成，設定完後會增加「custom.json」
+       <img src="screenshot/uclliu_save_1.63.png">
+	
+
+	(2025-06-22) v1.62 版：
 	病毒碼提交掃描：1.62
 	https://www.microsoft.com/en-us/wdsi/submission/f156b2c5-3079-4dd0-ae35-8a8c17803124
 	1. 193、fix short mode display #59 https://github.com/shadowjohn/UCL_LIU/pull/59 By Benson9954029
@@ -706,7 +712,7 @@ Ans：<br>
   <li>(Done 2019-03-02)74、自定詞庫有空白的字詞時，若有空白，會黏在一起的問題</li>
   <li>(Done 2019-03-02)75、自定詞庫有空白的字詞時，若有()，會消失的問題</li>
   <li>(Done 2019-03-02)76、自定詞庫有斷行的字詞時，能自動斷行</li>
-  <li>77、自定詞庫功能</li>
+  <li>(Done 2025-08-10)77、自定詞庫功能</li>
   <li>(Done 2019-03-02)78、修正遊戲「缺氧」中，打中字字的問題</li>  
   <li>(Done 2019-03-06)79、CapsLock + Backspace 優先刪除 肥模式 打出來的字根</li>
   <li>(Done 2019-03-06)80、CapsLock + Shift 也是穿透</li>  

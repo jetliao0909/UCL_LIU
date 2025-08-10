@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-VERSION = "1.62"
+VERSION = "1.63"
+import __main__  # 取得自己
+#from doctest import debug
 import os
 #os.environ['PYTHONIOENCODING'] = 'utf-8'
 #os.environ['PYTHONUTF8'] = '1'
@@ -72,6 +74,13 @@ import clip
 # 改用 i18n
 import myi18n
 my18 = myi18n.kit()
+
+# 2025-08-03 加入自定詞庫畫面
+import copy # 用於複製自定詞庫
+import custom_dict_window
+CUSTOM_JSON_PATH = "%s\\custom.json" % PWD
+
+
 #print my18.auto('test')
 #sys.exit()
 
@@ -1097,7 +1106,7 @@ def re_load_phone(_uclcode_phone):
 def phone_en_to_code(_en):
   #注音的英數，轉注音，如 -3 -> ㄦˇ
   global phone_DATA
-  global phone_INDEX
+  global phone_INDEX  
   # 已轉陣列
   #phone_INDEX = [, - . / 0 1 2 3 4 5 6 7 8 9 ; a b c d e f g h i j k l m n o p q r s t u v w x y z]
   #phone_DATA =  [ㄝ ㄦ ㄡ ㄥ ㄢ ㄅ ㄉ ˇ ˋ ㄓ ˊ ˙ ㄚ ㄞ ㄤ ㄇ ㄖ ㄏ ㄎ ㄍ ㄑ ㄕ ㄘ ㄛ ㄨ ㄜ ㄠ ㄩ ㄙ ㄟ ㄣ ㄆ ㄐ ㄋ ㄔ ㄧ ㄒ ㄊ ㄌ ㄗ ㄈ]
@@ -1149,57 +1158,116 @@ if my.is_file(PWD + "\\pinyi.txt")==True:
       #thread.start_new_thread( re_load_phone, (uclcode_phone, ))
       re_uclcode_phone = re_load_phone(uclcode_phone)
       #debug_print(uclcode_phone)
-  
-uclcode = my.json_decode(my.file_get_contents(PWD + "\\liu.json"))
 
+# 字根相關
+uclcode = {}
 uclcode_r = {}
 uclcode_rr = {}
+
 #然後把 chardefs 的字碼，變成對照字根，可以加速 ,,,z、,,,x 反查的速度
 #only short key
-_vrsfw_arr = ['v','r','s','f','w','l','c','b','k','j','je','jr','js','jf','jw','jl','jc','jb','jk','rj','re','rr']
+_vrsfw_arr = ['v','r','s','f','w','l','c','b','k','j','je','jr','js','jf','jw','jl','jc','jb','jk','rj','re','rr']  
+uclcode_orin = my.json_decode(my.file_get_contents(PWD + "\\liu.json")) # 載入原始的字根檔
 
-# 192、韓語字根在 liu.json 裡有些 key 是大寫，載入時改全小寫再使用，如：녕 sUd.
-# UCL key 強制轉小寫，有大寫的都移除
-keys_to_delete = []
-for k, v in uclcode["chardefs"].items():
+def load_word_root():  
+  # 載入字根檔
+  global uclcode
+  global uclcode_r
+  global uclcode_rr
+  global uclcode_orin
+  global CUSTOM_JSON_PATH # 自定字根檔路徑
+  debug_print("Reload word root ...")
+  # 清空 uclcode, uclcode_r, uclcode_rr    
+  #uclcode.clear()
+  #uclcode_r.clear()
+  #uclcode_rr.clear()
+  # 2025-08-05 如果有自定字根 custom.json，則合併載入
+  # 先複製 uclcode_orin 到 uclcode
+  uclcode = {}
+  uclcode_r = {}
+  uclcode_rr = {}
+  uclcode = copy.deepcopy(uclcode_orin) # 深層複製，避免 uclcode_orin 被改變
+  #print(CUSTOM_JSON_PATH)
+  if my.is_file(CUSTOM_JSON_PATH):     
+    #print("test1")  
+    try:
+      # 嘗試解Json自定字根檔，合併到 uclcode
+      #print("test2")  
+     
+      #print(jdstr)
+      jd = my.json_decode(unicode(my.file_get_contents(CUSTOM_JSON_PATH)))
+      #print("test3")  
+      #print(jd)  
+      for key in jd:
+        if key not in uclcode["chardefs"]:
+          #print("test4")
+          uclcode["chardefs"][key] = []
+          # 如果沒有重複的 key，則直接加入到 uclcode["chardefs"][key]
+          for word in jd[key]:
+            uclcode["chardefs"][key].append(word)  # 複製
+          #print(my.json_encode(jd[key]))
+        else:
+          # 如果有重複的 key，則合併到原有的字根
+          #print("test5")
+          #print(unicode(my.json_encode(uclcode["chardefs"][key])))
+          for word in jd[key]: 
+            if word not in uclcode["chardefs"][key]:
+              uclcode["chardefs"][key].append(word)
+    except Exception as e:
+      debug_print("自定字根檔 %s 解Json失敗，請檢查格式是否正確。" % CUSTOM_JSON_PATH)
+      debug_print("錯誤訊息：%s" % str(e))
+      # 如果解Json失敗，則忽略自定字根檔
+      pass  
+
+  # 192、韓語字根在 liu.json 裡有些 key 是大寫，載入時改全小寫再使用，如：녕 sUd.
+  # UCL key 強制轉小寫，有大寫的都移除
+  keys_to_delete = []
+  for k, v in uclcode["chardefs"].items():
     lower_k = k.lower()
     if k != lower_k:
-        uclcode["chardefs"][lower_k] = v
-        keys_to_delete.append(k)
-for k in keys_to_delete:
+      uclcode["chardefs"][lower_k] = v
+      keys_to_delete.append(k)
+  for k in keys_to_delete:
     del uclcode["chardefs"][k]
     
-for k in uclcode["chardefs"]:         
-   #2022-09-01 感謝 Benson9954029 提出修正
-   for kk in range(0,len(uclcode["chardefs"][k])):
-     _word = uclcode["chardefs"][k][kk]
-     temp_k = k     
-     if kk > 0: # and kk-1 < len(_vrsfw_arr):       
-       # 如 娚-> gqd2
-       #debug_print("str(kk) : "+str(kk));
-       temp_k = unicode(str(k)+str(kk))
-       # 如 娚-> gqd2 -> gqdr
-       #temp_k = unicode(str(k)+str(_vrsfw_arr[kk-1]))
-       #debug_print("temp_k : "+temp_k);
-       #debug_print("str(k) : "+str(k));
-       #debug_print("str(kk) : "+str(kk));
-       #sys.exit();
-       #temp_k : gai1
-       #str(k) : gai
-       #str(kk) : 1
-     if _word not in uclcode_r:
-       uclcode_r[_word] = temp_k
-       uclcode_rr[temp_k] = _word
-     else:
-       if len(temp_k) < len(uclcode_r[_word]):
-         uclcode_r[_word] = temp_k         
+  for k in uclcode["chardefs"]:         
+    #2022-09-01 感謝 Benson9954029 提出修正
+    for kk in range(0,len(uclcode["chardefs"][k])):
+       _word = uclcode["chardefs"][k][kk]
+       temp_k = k     
+       if kk > 0: # and kk-1 < len(_vrsfw_arr):       
+         # 如 娚-> gqd2
+         #debug_print("str(kk) : "+str(kk));
+         temp_k = unicode(str(k)+str(kk))
+         # 如 娚-> gqd2 -> gqdr
+         #temp_k = unicode(str(k)+str(_vrsfw_arr[kk-1]))
+         #debug_print("temp_k : "+temp_k);
+         #debug_print("str(k) : "+str(k));
+         #debug_print("str(kk) : "+str(kk));
+         #sys.exit();
+         #temp_k : gai1
+         #str(k) : gai
+         #str(kk) : 1
+       if _word not in uclcode_r:
+         uclcode_r[_word] = temp_k
          uclcode_rr[temp_k] = _word
-     #debug_print(_word + ", " + uclcode_r[_word]);  # 媮, gai
-     #debug_print(temp_k + ", " + uclcode_rr[temp_k]);  # gai, 媮
-     #my.exit()
-     #if _word == '夬' or _word == '搉':
-     #    debug_print(uclcode_r[_word] + ":"+ _word)
+       else:
+         if len(temp_k) < len(uclcode_r[_word]):
+           uclcode_r[_word] = temp_k         
+           uclcode_rr[temp_k] = _word
+       #debug_print(_word + ", " + uclcode_r[_word]);  # 媮, gai
+       #debug_print(temp_k + ", " + uclcode_rr[temp_k]);  # gai, 媮
+       #my.exit()
+       #if _word == '夬' or _word == '搉':
+       #    debug_print(uclcode_r[_word] + ":"+ _word)
 #my.exit()        
+
+# 載入字根
+load_word_root()
+
+
+
+
 
 
 def thread___playMusic(keyboard_volume):
@@ -1628,8 +1696,9 @@ def x_btn_click(self):
   sys.exit()
 # draggable
 def winclicked(self, event):
-  # make UCLLIU can draggable  
+  # make UCLLIU can draggable    
   self.window.begin_move_drag(event.button, int(event.x_root), int(event.y_root), event.time)
+  #return
   #self.window.begin_move_drag(event.button, int(event.x_root), int(event.y_root), event.time)
   #self.window.begin_resize_drag(event.button, int(event.x_root), int(event.y_root), event.time)
   # Write to UCLLIU.ini
@@ -1817,6 +1886,7 @@ def word_label_set_text():
     word_label.modify_font(pango.FontDescription(GUI_FONT_18))  
     return True
 def uclcode_to_chinese(code):
+  global uclcode
   # 字根 轉 中文字
   global uclcode_rr
   if code in uclcode_rr:
@@ -1864,6 +1934,7 @@ def uclcode_to_chinese(code):
     return code 
 def show_search(kind):
   #真的要顯示了
+  global uclcode
   global play_ucl_label
   global ucl_find_data
   global ucl_find_data_orin_arr
@@ -1875,6 +1946,7 @@ def show_search(kind):
   global debug_print
   global same_sound_max_word
   global uclcode_phone
+  
   same_sound_index = 0
   is_has_more_page = False
   same_sound_last_word=""
@@ -2759,7 +2831,7 @@ def OnKeyboardEvent(event):
       
       #hm.HookMouse()            
       debug_print("Debug event C") 
-    debug_print("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+    #debug_print("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
     debug_print("event.MessageName: %s , event.Key = %s" % (event.MessageName, event.Key))
     # alt is Lmenu and Rmenu
     if (event.MessageName == "key down" or event.MessageName == "key sys down") and (event.Key == "Lmenu" or event.Key == "Rmenu"):
@@ -3329,11 +3401,18 @@ hm.HookKeyboard()
 
         
 #win=gtk.Window(type=gtk.WINDOW_POPUP)
-win=gtk.Window(type=gtk.WINDOW_POPUP)
+# 2025-08-03
+
+
+# win 得用 gtk.WINDOW_POPUP 下面 taskbar 才不會多一個視窗
+win=gtk.Window(type=gtk.WINDOW_POPUP) # WINDOW_TOPLEVEL WINDOW_POPUP
 win.set_modal(True)
 win.set_resizable(False)
 
 
+#win.show_all()
+
+#
 
 #win.move(screen_width-700,int(screen_height*0.87))
 win.move( int(config["DEFAULT"]["X"]) , int(config["DEFAULT"]["Y"]))
@@ -3347,11 +3426,9 @@ win.set_accept_focus(False)
 win.set_icon_name(None)
 
 win.add_events( gdk.BUTTON_PRESS_MASK)
-win.connect ('button-press-event', winclicked)
-
+win.connect('button-press-event', winclicked)
 
 vbox = gtk.VBox(False)
-
 hbox=gtk.HBox()
 vbox.pack_start(hbox, False)
 
@@ -3397,6 +3474,8 @@ simple_label.modify_font(pango.FontDescription(GUI_FONT_16))
 #simple_label.set_alignment(xalign=0.05, yalign=0.5)
 f_word = gtk.Frame()
 f_word.add(simple_btn)
+# default not show for 正體
+
 hbox.add(f_word)
 
 
@@ -3446,7 +3525,23 @@ class TrayIcon():
         my.file_put_contents(ICON_PATH,raw_data,False)
       except:
         pass
-      self.reload_tray()            
+      self.reload_tray()    
+   
+      
+    def _menu_custom_dict(self,event,data=None):
+      # 開啟自定詞庫功能
+      # 2025-08-03
+      # 出現自定詞庫 GUI 畫面
+      # 從任意 thread 呼叫時：
+      #gobject.idle_add(self.open_custom_dict_window_in_ui_thread)  
+      #self.open_custom_dict_window_in_ui_thread()
+      #global custom_win
+      #if not custom_win:      
+      my_custom = custom_dict_window.CustomDictWindow(__main__)      
+      #custom_win.show_all()
+      
+
+      # 可以移動視窗位置
     def reload_tray(self):
       global config
       global ICON_PATH
@@ -3616,8 +3711,8 @@ class TrayIcon():
         menu_options = menu_options + ((
           (my18.auto("10.【　】允許(Shift+Space)切換 全形/半形"), None, [self.m_halffull_switch] ),          
         ))
-        
-      menu_options = menu_options + ((my18.auto("11. 離開(Quit)"), None, [self.m_quit]),)
+      menu_options = menu_options + ((my18.auto("11. 自定詞庫"), None, [self._menu_custom_dict]),)
+      menu_options = menu_options + ((my18.auto("12. 離開(Quit)"), None, [self.m_quit]),)
       if self.systray=="":
         #ICON_PATH
         #UCL_PIC_BASE64
@@ -3772,8 +3867,7 @@ class TrayIcon():
 tray = TrayIcon()
 
 
-win.show_all()
-simple_btn.set_visible(False)
+
 
 if config["DEFAULT"]["SHORT_MODE"] == "1":
   run_short()
@@ -3782,11 +3876,32 @@ else:
   
 
 
+#custom_win = gtk.Window(type=gtk.WINDOW_TOPLEVEL)
+#custom_win.set_modal(True)
+win.show_all()
+
+
+# here for 正體中文!!!
+simple_btn.set_visible(False)
+
 win.set_focus(None)
+
 
 # 初使化按二次
 #uclen_btn_click(uclen_btn)
 #uclen_btn_click(uclen_btn)
+##################################################################################
+# 2025-08-04 Add Custom Dict Window
+##################################################################################
+
+
+
+
+
+
+
+
+
 
 #set_interval(1)
 if config['DEFAULT']['STARTUP_DEFAULT_UCL'] == "0":
@@ -3798,16 +3913,34 @@ def updateGUI():
   global updateGUI_Step
   #global is_shutdown
   while gtk.events_pending():
-    gtk.main_iteration(False)
+    gtk.main_iteration(True)
   updateGUI_Step = updateGUI_Step + 1
   if updateGUI_Step % 100 == 0:
     updateGUI_Step = 0
     toAlphaOrNonAlpha()
-while True:
-  time.sleep(0.01)
+
+#while True:
+  #time.sleep(0.01)
   #debug_print("gg")
-  updateGUI()
-        
+  #print("GGGGG")
+  #updateGUI()
+def updateGUILoop():
+  while True:
+    time.sleep(0.01)
+    #debug_print("gg")
+    #print("GGGGG")
+    updateGUI()    
+#thread.start_new_thread( updateGUILoop,(),)
+updateGUILoop()
+#gobject.idle_add(updateGUILoop)  
+#gtk.main()
+#gtk.main()
+
+#updateGUILoop()
+#while True:
+#  time.sleep(0.01)  
+#gtk.main()     
 pythoncom.PumpMessages()     
 
+#print("GGGG")
 #mainloop()

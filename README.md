@@ -22,7 +22,7 @@
   <a target="_blank" href="mailto:uclliu.3wa@gmail.com">uclliu.3wa@gmail.com</a><br>
 <br>
 <h3>最初開發日期：</h3>2017-06-16 11:24<br>
-<h3>最後更新日期：</h3>2025-06-22 00:35
+<h3>最後更新日期：</h3>2025-08-10 15:21
 <br>
 <h3>版本：</h3>V 1.63<br>
 <br>
@@ -146,7 +146,7 @@ Windows 顯示語言：中文（台灣）<br>
 	</kbd>
 <br>
 <pre>
-	(2023-11-01) v1.63 版：
+	(2025-08-10) v1.63 版：
 	病毒碼提交掃描：1.63
 	1. 77、自定詞庫功能初步完成，設定完後會增加「custom.json」
        <img src="screenshot/uclliu_save_1.63.png">

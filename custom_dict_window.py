@@ -42,6 +42,8 @@ class CustomDictWindow(object):
         self.custom_UI["win"].set_modal(True)
         self.custom_UI["win"].set_title(my18.auto("自定字詞功能"))
         self.custom_UI["win"].set_size_request(600, 400)
+        # 防最大化視窗大小
+        self.custom_UI["win"].set_resizable(False)
         self.custom_UI["win"].set_position(gtk.WIN_POS_CENTER)
         self.custom_UI["win"].connect("destroy", gtk.main_quit)
         self.GLOBAL_FONT_FAMILY = "Mingliu,Serif,Malgun Gothic,roman" #roman
@@ -53,13 +55,17 @@ class CustomDictWindow(object):
         hbox_input = gtk.HBox(False, 5)
         vbox_main.pack_start(hbox_input, False, False, 0)
 
+        # ===== 輸入字根 =====
         self.custom_UI["entry_key"] = gtk.Entry()
         self.custom_UI["entry_key"].set_max_length(5)        
         self.custom_UI["entry_key"].modify_font(pango.FontDescription("Consolas bold 18"))
         self.custom_UI["entry_key"].set_size_request(120, 50)
         hbox_input.pack_start(gtk.Label(my18.auto("字根：")), False, False, 0)
         hbox_input.pack_start(self.custom_UI["entry_key"], False, False, 0)
+        # 當 focus 進入 entry_key 時，如果是「肥模式」，切換回「英文模式」
+        self.custom_UI["entry_key"].connect("focus-in-event", self.focusOn_entry_key)
 
+        # ===== 輸入出字詞 =====
         self.custom_UI["text_words"] = gtk.TextView()
         self.custom_UI["text_words"].set_wrap_mode(gtk.WRAP_WORD)
         self.custom_UI["text_words"].set_size_request(300, 50)
@@ -119,7 +125,15 @@ class CustomDictWindow(object):
         #self.win.destroy()
         self.save_data()
         self.custom_UI["parent"].load_word_root() # 重新載入字根
-
+    def focusOn_entry_key(self, widget, event):
+        #print("focusOn_entry_key")
+        # 如果是「肥模式」，切換回「英文模式」
+        print("is_url: %s" % (self.custom_UI["parent"].is_ucl()))
+        if self.custom_UI["parent"].is_ucl():
+            self.custom_UI["parent"].toggle_ucl()  
+            # 重新 focus 到 entry_key
+            self.custom_UI["entry_key"].grab_focus()
+        #return True # 返回 True 以防止事件繼續傳播
         
 
     def load_data(self):

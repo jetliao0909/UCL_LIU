@@ -473,7 +473,7 @@ else:
   config['DEFAULT']['ENABLE_HALF_FULL']="1"    
 
 # GUI Font
-GLOBAL_FONT_FAMILY = "Mingliu,Serif,Malgun Gothic,roman" #roman
+GLOBAL_FONT_FAMILY = "Mingliu,Serif,Malgun Gothic,roman,Mingliu-ExtB" #roman
 GUI_FONT_12 = my.utf8tobig5("%s %d" % (GLOBAL_FONT_FAMILY,int( float(config['DEFAULT']['ZOOM'])*12) ));
 GUI_FONT_14 = my.utf8tobig5("%s bold %d" % (GLOBAL_FONT_FAMILY,int(float(config['DEFAULT']['ZOOM'])*14) ));
 GUI_FONT_16 = my.utf8tobig5("%s bold %d" % (GLOBAL_FONT_FAMILY,int(float(config['DEFAULT']['ZOOM'])*16) ));

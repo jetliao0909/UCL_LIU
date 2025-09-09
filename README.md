@@ -830,6 +830,6 @@ Ans：<br>
   <li>(Done 2023-11-17)192、韓語字根在 liu.json 裡有些 key 是大寫，載入時改全小寫再使用，如：녕 sUd.</li>
   <li>(Done 2025-06-22)193、fix short mode display #59 https://github.com/shadowjohn/UCL_LIU/pull/59 By Benson9954029</li>
   <li>(Done 2025-09-09)194、特殊字「𠫕」在介面顯示的狀況 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029</li>
-  <li>195、當特殊字「𠫕」手動新增在自定字區，使用 zuav 出現亂碼的問題 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029</li>
+  <li>(Done 2025-09-09)195、當特殊字「𠫕」手動新增在自定字區，使用 zuav 出現亂碼的問題 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029</li>
 </ul>
 <br>

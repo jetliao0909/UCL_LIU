@@ -1196,6 +1196,15 @@ def load_word_root():
      
       #print(jdstr)
       jd = my.json_decode(unicode(my.file_get_contents(CUSTOM_JSON_PATH)))
+      # Issue 196、自定詞庫功能 如果定義如 ucl、UCL 可以允許寫到原本的字根後面，如 0肥 1肥宅1 2肥宅2，大小寫也有問題，先統一小寫
+      # 強制 key 全小寫
+      jd_lower = {}
+      for k in jd:
+        jd_lower[k.lower()] = jd[k]
+      jd = jd_lower
+
+
+
       #print("test3")  
       #print(jd)  
       for key in jd:

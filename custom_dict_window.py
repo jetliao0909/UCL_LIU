@@ -135,6 +135,15 @@ class CustomDictWindow(object):
         # return self.win
         # 視窗關閉時，主程式執行 load_word_root
         self.custom_UI["win"].connect("delete-event", self.on_window_delete_event)
+
+        # Issue 196、自定詞庫功能 如果定義如 ucl、UCL 可以允許寫到原本的字根後面，如 0肥 1肥宅1 2肥宅2，大小寫也有問題，先統一小寫
+        # 強制 self.custom_UI["entry_key"] 小寫
+        self.custom_UI["entry_key"].connect(
+            "changed",
+            lambda w: w.set_text(my.strtolower(w.get_text())),
+        )
+
+        # 文字變化時立即刷新，因為載入「Mingliu-ExtB」會造成第一個字顯示異常，只能用這個方法解決
         self.custom_UI["text_words"].get_buffer().connect(
             "changed", self.text_words_key_changed
         )
@@ -177,13 +186,26 @@ class CustomDictWindow(object):
                 self.custom_UI["data"] = {}
         else:
             self.custom_UI["data"] = {}
+        # Issue 196、把所有 key 強制轉小寫
+        new_data = {}
+        for key in self.custom_UI["data"]:
+            new_key = my.strtolower(key)
+            if new_key not in new_data:
+                new_data[new_key] = self.custom_UI["data"][key]
+            else:
+                # 如果 new_data 已經有這個 key，則把 value 合併
+                new_data[new_key].extend(self.custom_UI["data"][key])
+                # 去除重複的 value
+                new_data[new_key] = list(set(new_data[new_key]))
+        # 換掉
+        self.custom_UI["data"] = new_data
 
     def save_data(self):
         # with open(CUSTOM_JSON_PATH, "w", encoding="utf-8") as f:
         #    json.dump(self.custom_UI["data"], f, ensure_ascii=False, indent=2)
         my.file_put_contents(
             CUSTOM_JSON_PATH,
-            my.json_encode_utf8(self.custom_UI["data"]),
+            my.json_format_utf8(self.custom_UI["data"]),
             IS_APPEND=False,
         )
 

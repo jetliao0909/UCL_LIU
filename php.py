@@ -94,7 +94,11 @@ class kit:
         return json.dumps(self.json_decode(json_data),indent=4, sort_keys=True)
     def json_format_utf8(self,json_data):
         import json
-        return json.dumps(self.json_decode(json_data),indent=4, sort_keys=True, ensure_ascii=False)                                      
+        # if is string, convert to dict first
+        if type(json_data) == str:
+            return json.dumps(self.json_decode(json_data),indent=4, sort_keys=True, ensure_ascii=False)                                      
+        else:
+            return json.dumps(json_data,indent=4, sort_keys=True, ensure_ascii=False)
     def array_unique(self,arr):
         #return list(set(arr))
         out_list = []

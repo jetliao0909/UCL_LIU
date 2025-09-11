@@ -146,11 +146,17 @@ Windows 顯示語言：中文（台灣）<br>
 	</kbd>
 <br>
 <pre>
+	(2025-09-11) v1.64 版：
+	病毒碼提交掃描：1.64    
+	1. 194、特殊字「𠫕」在介面顯示的狀況 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029
+	2. 195、當特殊字「𠫕」手動新增在自定字區，使用 zuav 出現亂碼的問題 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029
+	3. 196、自定詞庫功能 如果定義如 ucl、UCL 可以允許寫到原本的字根後面，如 0肥 1肥宅1 2肥宅2，大小寫也有問題，字根統一小寫
+
 	(2025-08-10) v1.63 版：
 	病毒碼提交掃描：1.63
-    https://www.microsoft.com/en-us/wdsi/submission/30d4454a-c369-41dc-87fd-d071cef06d68
+	https://www.microsoft.com/en-us/wdsi/submission/30d4454a-c369-41dc-87fd-d071cef06d68
 	1. 77、自定詞庫功能初步完成，設定完後會增加「custom.json」
-       <img src="screenshot/uclliu_save_1.63.png">
+	   <img src="screenshot/uclliu_save_1.63.png">
 	
 
 	(2025-06-22) v1.62 版：
@@ -831,6 +837,6 @@ Ans：<br>
   <li>(Done 2025-06-22)193、fix short mode display #59 https://github.com/shadowjohn/UCL_LIU/pull/59 By Benson9954029</li>
   <li>(Done 2025-09-09)194、特殊字「𠫕」在介面顯示的狀況 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029</li>
   <li>(Done 2025-09-09)195、當特殊字「𠫕」手動新增在自定字區，使用 zuav 出現亂碼的問題 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029</li>  
-  <li>196、自定詞庫功能 如果定義如 ucl、UCL 可以允許寫到原本的字根後面，如 0肥 1肥宅1 2肥宅2，大小寫也有問題，先統一小寫</li>
+  <li>(Done 2025-09-11)196、自定詞庫功能 如果定義如 ucl、UCL 可以允許寫到原本的字根後面，如 0肥 1肥宅1 2肥宅2，大小寫也有問題，字根統一小寫</li>
 </ul>
 <br>

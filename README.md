@@ -148,6 +148,7 @@ Windows 顯示語言：中文（台灣）<br>
 <pre>
 	(2025-09-11) v1.64 版：
 	病毒碼提交掃描：1.64    
+    https://www.microsoft.com/en-us/wdsi/submission/04da7699-bdaa-46f5-9008-babee1487dac
 	1. 194、特殊字「𠫕」在介面顯示的狀況 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029
 	2. 195、當特殊字「𠫕」手動新增在自定字區，使用 zuav 出現亂碼的問題 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029
 	3. 196、自定詞庫功能 如果定義如 ucl、UCL 可以允許寫到原本的字根後面，如 0肥 1肥宅1 2肥宅2，大小寫也有問題，字根統一小寫

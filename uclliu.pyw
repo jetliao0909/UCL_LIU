@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-VERSION = "1.63"
+VERSION = "1.64"
 import __main__  # 取得自己
 #from doctest import debug
 import os
@@ -473,7 +473,7 @@ else:
   config['DEFAULT']['ENABLE_HALF_FULL']="1"    
 
 # GUI Font
-GLOBAL_FONT_FAMILY = "Mingliu,Serif,Malgun Gothic,roman" #roman
+GLOBAL_FONT_FAMILY = "Mingliu,Serif,Malgun Gothic,roman,Mingliu-ExtB" #roman
 GUI_FONT_12 = my.utf8tobig5("%s %d" % (GLOBAL_FONT_FAMILY,int( float(config['DEFAULT']['ZOOM'])*12) ));
 GUI_FONT_14 = my.utf8tobig5("%s bold %d" % (GLOBAL_FONT_FAMILY,int(float(config['DEFAULT']['ZOOM'])*14) ));
 GUI_FONT_16 = my.utf8tobig5("%s bold %d" % (GLOBAL_FONT_FAMILY,int(float(config['DEFAULT']['ZOOM'])*16) ));
@@ -1196,6 +1196,15 @@ def load_word_root():
      
       #print(jdstr)
       jd = my.json_decode(unicode(my.file_get_contents(CUSTOM_JSON_PATH)))
+      # Issue 196、自定詞庫功能 如果定義如 ucl、UCL 可以允許寫到原本的字根後面，如 0肥 1肥宅1 2肥宅2，大小寫也有問題，先統一小寫
+      # 強制 key 全小寫
+      jd_lower = {}
+      for k in jd:
+        jd_lower[k.lower()] = jd[k]
+      jd = jd_lower
+
+
+
       #print("test3")  
       #print(jd)  
       for key in jd:
@@ -1452,7 +1461,7 @@ def show_sp_to_label(data,isForce=None):
   # Issue : 189、时(h1 提示根有 hv、h1) ，但 hv 實際是另一個字根「惟」(感謝 Benson9954029 回報)
   if len(_sp_data) > 0 and unicode(_sp_data[-1]).isnumeric() and int(_sp_data[-1])>=1 and int(_sp_data[-1])<=5:
     # 如果預選字，如 「GQD 動 舅 娚」的 kk 在 1 或 2 (舅、娚)，就會變 GQD1 GQD2     
-    # 如為數字，加上 反 VRSFW 功能
+    # 如為數字，加上 反 VRSFW 功能    
     _tmp_sp_data = _sp_data[:-1] + my.strtoupper(_vrsfw_arr[int(_sp_data[-1])-1]) 
     # debug_print("_tmp_sp_data: %s + %s" % (_sp_data[:-1] , my.strtoupper(_vrsfw_arr[int(_sp_data[-1])-1])) ) # H + V
     # 為修正 Issue : 189 字根表 HV 如果沒有「时」，就不顯示
@@ -1461,7 +1470,7 @@ def show_sp_to_label(data,isForce=None):
     #debug_print("uclcode_rr[\"pns\"]: %s" % (uclcode_rr["pns"])); # 你
     #debug_print("_sp_data: %s" % (_sp_data)); #H1
     #debug_print("_tmp_sp_data: %s" % (_tmp_sp_data)); # HV
-    if my.strtolower(_tmp_sp_data) not in uclcode_rr:
+    if my.strtolower(_tmp_sp_data) not in uclcode_rr:      
       _sp_data = _tmp_sp_data + "或" + _sp_data
     else:
       pass
@@ -1799,7 +1808,7 @@ def type_label_set_text(last_word_label_txt="",showOnly=False):
     debug_print("my.strlen(last_word_label_txt): %d" % (my.strlen(last_word_label_txt)))
     if my.strlen(last_word_label_txt)>14:
       word_label.modify_font(pango.FontDescription(GUI_FONT_16))
-  
+    #debug_print("Set last_word_label_txt")
     word_label.set_label( last_word_label_txt )
     word_label.modify_fg(gtk.STATE_NORMAL, gtk.gdk.Color("#007fff"))
     
@@ -1843,11 +1852,20 @@ def word_label_set_text():
   m = []
   try:  
     for k in ucl_find_data:
-      m.append("%d%s" % (step,k))
+      #print(dir(ucl_find_data))
+      #debug_print("GGGGGGGGGGGGGGGGGGGGGGGGGGGG")
+      #_k = unicode(k)
+      #print(k.encode("utf-8"))
+      #k = k.encode("UTF-8")
+      #if not isinstance(k, unicode):
+      #  k = k.decode("utf-8")  # or "big5" depending on your source
+      m.append(u"%d%s" % (step, k))
       step=step+1
     tmp = my.implode(" ",m)
+    
     if is_has_more_page == True:
       tmp = "%s ..." % (tmp)
+    #print(unicode(tmp))
     word_label.set_label(tmp)
     
     debug_print(("word_label lens: %d " % (len(tmp))));    
@@ -1897,7 +1915,7 @@ def uclcode_to_chinese(code):
   #debug_print(u"use : uclcode_to_chinese ... 繼續走下面流程");
   global ucl_find_data
   #global debug_print
-  global _vrsfw_arr  
+  global _vrsfw_arr    
   c = code
   c = my.trim(c)
   if c == "":
@@ -1977,24 +1995,29 @@ def show_search(kind):
   if c[0] == "'" and len(c)>1:
     c=c[1:]
     is_need_use_pinyi=True       
-  if c not in WORDS_FROM and c[-1]=='v' and c[:-1] in WORDS_FROM and len(WORDS_FROM[c[:-1]])>=2 :
-    #debug_print("Debug V1")
-    ucl_find_data = WORDS_FROM[c[:-1]][1]   
+  if c not in WORDS_FROM and c[-1]=='v' and c[:-1] in WORDS_FROM and len(WORDS_FROM[c[:-1]])>=2:
+    #debug_print("Debug V1111111111111111111111111111111")
+    #debug_print(WORDS_FROM[c[:-1]])
+    #WORDS_FROM[c[:-1]] = [c.encode("utf-8") for c in WORDS_FROM[c[:-1]]]
+    # 修正 195、當特殊字「𠫕」手動新增在自定字區，使用 zuav 出現亂碼的問題 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029
+    # WORDS_FROM[c[:-1]][1] 失敗，但 WORDS_FROM[c[:-1]][1:2] 成功
+    ucl_find_data = WORDS_FROM[c[:-1]][1:2]
+    #ucl_find_data = [u'\u7b16', u'\U00020ad5']
     word_label_set_text()
     return True
-  elif c not in WORDS_FROM and c[-1]=='r' and c[:-1] in WORDS_FROM and len(WORDS_FROM[c[:-1]])>=3 :
+  elif c not in WORDS_FROM and c[-1]=='r' and c[:-1] in WORDS_FROM and len(WORDS_FROM[c[:-1]])>=3:
     #debug_print("Debug V1")
-    ucl_find_data = WORDS_FROM[c[:-1]][2]   
+    ucl_find_data = WORDS_FROM[c[:-1]][2:3] 
     word_label_set_text()
     return True
-  elif c not in WORDS_FROM and c[-1]=='s' and c[:-1] in WORDS_FROM and len(WORDS_FROM[c[:-1]])>=4 :
+  elif c not in WORDS_FROM and c[-1]=='s' and c[:-1] in WORDS_FROM and len(WORDS_FROM[c[:-1]])>=4:
     #debug_print("Debug V1")
-    ucl_find_data = WORDS_FROM[c[:-1]][3]   
+    ucl_find_data = WORDS_FROM[c[:-1]][3:4]
     word_label_set_text()
     return True
-  elif c not in WORDS_FROM and c[-1]=='f' and c[:-1] in WORDS_FROM and len(WORDS_FROM[c[:-1]])>=5 :
+  elif c not in WORDS_FROM and c[-1]=='f' and c[:-1] in WORDS_FROM and len(WORDS_FROM[c[:-1]])>=5:
     #debug_print("Debug V1")
-    ucl_find_data = WORDS_FROM[c[:-1]][4]   
+    ucl_find_data = WORDS_FROM[c[:-1]][4:5]
     word_label_set_text()
     return True
   elif c in WORDS_FROM:
@@ -3913,7 +3936,7 @@ def updateGUI():
   global updateGUI_Step
   #global is_shutdown
   while gtk.events_pending():
-    gtk.main_iteration(True)
+    gtk.main_iteration(True)    
   updateGUI_Step = updateGUI_Step + 1
   if updateGUI_Step % 100 == 0:
     updateGUI_Step = 0

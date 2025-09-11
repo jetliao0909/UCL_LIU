@@ -22,9 +22,9 @@
   <a target="_blank" href="mailto:uclliu.3wa@gmail.com">uclliu.3wa@gmail.com</a><br>
 <br>
 <h3>最初開發日期：</h3>2017-06-16 11:24<br>
-<h3>最後更新日期：</h3>2025-08-10 15:21
+<h3>最後更新日期：</h3>2025-09-11 11:35
 <br>
-<h3>版本：</h3>V 1.63<br>
+<h3>版本：</h3>V 1.64<br>
 <br>
 <h3>版權：</h3>
 　完全免費的 MIT-License
@@ -33,10 +33,10 @@
 </center>
 <h3>下載位置：</h3>
 <h3>～～提醒：如果遇到無法使用肥米的視窗，請關閉肥米輸入法，按右鍵，改用「系統管理員身分執行肥米輸入法」，應該就可以克服!!～～</h3>
-　　1.主程式(1.63 beta 版)：<a download="uclliu.exe" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.exe">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.exe</a><br>	
-　　2.主程式(1.63 beta 版 zip 版)：<a download="uclliu.zip" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.zip">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.zip</a><br>	
-　　3.主程式(1.62 穩定版)：<a download="uclliu.exe" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.62/uclliu.exe">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.62/uclliu.exe</a><br>
-　　4.主程式(1.62 穩定版 zip 版)：<a download="uclliu.zip" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.62/uclliu.zip">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.62/uclliu.zip</a><br>
+　　1.主程式(1.64 beta 版)：<a download="uclliu.exe" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.exe">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.exe</a><br>	
+　　2.主程式(1.64 beta 版 zip 版)：<a download="uclliu.zip" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.zip">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/uclliu.zip</a><br>	
+　　3.主程式(1.63 穩定版)：<a download="uclliu.exe" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.63/uclliu.exe">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.63/uclliu.exe</a><br>
+　　4.主程式(1.63 穩定版 zip 版)：<a download="uclliu.zip" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.63/uclliu.zip">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/RELEASE/1.63/uclliu.zip</a><br>
 　　5.歷年版本：<a target="_blank" href="https://github.com/shadowjohn/UCL_LIU/tree/master/RELEASE">歷代版本</a><br>
 　　6.同音字庫：<a download="pinyi.txt" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/pinyi.txt">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/dist/pinyi.txt</a><br>
 　　7.打字聲音：<a download="pinyi.txt" target="_blank" href="https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/wavs/wavs.zip">https://raw.githubusercontent.com/shadowjohn/UCL_LIU/master/wavs/wavs.zip</a> 下載後解開，0~9.wav 與 uclliu.exe 放一起
@@ -146,11 +146,19 @@ Windows 顯示語言：中文（台灣）<br>
 	</kbd>
 <br>
 <pre>
+	(2025-09-11) v1.64 版：
+	病毒碼提交掃描：1.64    
+    https://www.microsoft.com/en-us/wdsi/submission/04da7699-bdaa-46f5-9008-babee1487dac
+	1. 194、特殊字「𠫕」在介面顯示的狀況 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029
+	2. 195、當特殊字「𠫕」手動新增在自定字區，使用 zuav 出現亂碼的問題 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029
+	3. 196、自定詞庫功能 如果定義如 ucl、UCL 可以允許寫到原本的字根後面，如 0肥 1肥宅1 2肥宅2，大小寫也有問題，字根統一小寫
+    4. 197、自定詞庫功能 字根只能允許 a-z,.]['
+
 	(2025-08-10) v1.63 版：
 	病毒碼提交掃描：1.63
-    https://www.microsoft.com/en-us/wdsi/submission/30d4454a-c369-41dc-87fd-d071cef06d68
+	https://www.microsoft.com/en-us/wdsi/submission/30d4454a-c369-41dc-87fd-d071cef06d68
 	1. 77、自定詞庫功能初步完成，設定完後會增加「custom.json」
-       <img src="screenshot/uclliu_save_1.63.png">
+	   <img src="screenshot/uclliu_save_1.63.png">
 	
 
 	(2025-06-22) v1.62 版：
@@ -829,5 +837,9 @@ Ans：<br>
   <li>(Done 2023-11-17)191、Excel 裡開發者模式，Microsoft Visual Basic for Applications 上字用 big5 貼上模式</li>
   <li>(Done 2023-11-17)192、韓語字根在 liu.json 裡有些 key 是大寫，載入時改全小寫再使用，如：녕 sUd.</li>
   <li>(Done 2025-06-22)193、fix short mode display #59 https://github.com/shadowjohn/UCL_LIU/pull/59 By Benson9954029</li>
+  <li>(Done 2025-09-09)194、特殊字「𠫕」在介面顯示的狀況 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029</li>
+  <li>(Done 2025-09-09)195、當特殊字「𠫕」手動新增在自定字區，使用 zuav 出現亂碼的問題 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029</li>  
+  <li>(Done 2025-09-11)196、自定詞庫功能 如果定義如 ucl、UCL 可以允許寫到原本的字根後面，如 0肥 1肥宅1 2肥宅2，大小寫也有問題，字根統一小寫</li>
+  <li>(Done 2025-09-11)197、自定詞庫功能 字根只能允許 a-z,.]['</li>
 </ul>
 <br>

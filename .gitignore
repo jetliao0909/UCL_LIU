@@ -45,3 +45,15 @@ wuxiami.txt
 /*.wav
 /.vs
 /tools/output.txt
+/p27/PyInstaller-3.4.tar/dist/PyInstaller-3.4/dist/PyInstaller-3.4-py2.7.egg
+/p27/PyInstaller-3.4.tar/dist/PyInstaller-3.4/PyInstaller.egg-info/entry_points.txt
+/p27/PyInstaller-3.4.tar/dist/PyInstaller-3.4/PyInstaller.egg-info/PKG-INFO
+/p27/PyInstaller-3.4.tar/dist/PyInstaller-3.4/PyInstaller.egg-info/requires.txt
+/p27/PyInstaller-3.4.tar/dist/PyInstaller-3.4/PyInstaller.egg-info/SOURCES.txt
+/p27/PyInstaller-3.4.tar/dist/PyInstaller-3.4/PyInstaller.egg-info/top_level.txt
+/p27/PyInstaller-3.4.tar/dist/PyInstaller-3.4/PyInstaller.egg-info/dependency_links.txt
+/p27/pefile-2017.8.1/dist/pefile-2017.8.1-py2.7.egg
+/p27/pefile-2017.8.1/pefile.egg-info/dependency_links.txt
+/p27/pefile-2017.8.1/pefile.egg-info/requires.txt
+/p27/pefile-2017.8.1/pefile.egg-info/SOURCES.txt
+/p27/pefile-2017.8.1/pefile.egg-info/top_level.txt

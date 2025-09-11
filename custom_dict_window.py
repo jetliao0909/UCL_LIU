@@ -135,12 +135,10 @@ class CustomDictWindow(object):
         # return self.win
         # 視窗關閉時，主程式執行 load_word_root
         self.custom_UI["win"].connect("delete-event", self.on_window_delete_event)
-
-        # Issue 196、自定詞庫功能 如果定義如 ucl、UCL 可以允許寫到原本的字根後面，如 0肥 1肥宅1 2肥宅2，大小寫也有問題，先統一小寫
-        # 強制 self.custom_UI["entry_key"] 小寫
+        
+        # 字根輸入時強制檢查        
         self.custom_UI["entry_key"].connect(
-            "changed",
-            lambda w: w.set_text(my.strtolower(w.get_text())),
+            "changed", self.text_entry_key_changed
         )
 
         # 文字變化時立即刷新，因為載入「Mingliu-ExtB」會造成第一個字顯示異常，只能用這個方法解決
@@ -148,7 +146,21 @@ class CustomDictWindow(object):
             "changed", self.text_words_key_changed
         )
         # self.custom_UI["text_words"].queue_draw()
-
+    def text_entry_key_changed(self, widget):        
+        # 強制 self.custom_UI["entry_key"] 小寫
+        current_text = widget.get_text()
+        lower_text = my.strtolower(current_text)
+        if current_text != lower_text:
+            widget.set_text(lower_text)
+            # 將游標移到最後
+            widget.set_position(len(lower_text))
+        # Issue 197、自定詞庫功能 字根只能允許 a-z,.]['
+        allowed_chars = "abcdefghijklmnopqrstuvwxyz,.]['"
+        filtered_text = ''.join([c for c in lower_text if c in allowed_chars])        
+        if lower_text != filtered_text:
+            widget.set_text(filtered_text)
+            # 將游標移到最後
+            widget.set_position(len(filtered_text))
     def text_words_key_changed(self, widget):
         # 文字變化時立即刷新
         self.custom_UI["text_words"].queue_draw()

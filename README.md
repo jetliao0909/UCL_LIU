@@ -22,7 +22,7 @@
   <a target="_blank" href="mailto:uclliu.3wa@gmail.com">uclliu.3wa@gmail.com</a><br>
 <br>
 <h3>最初開發日期：</h3>2017-06-16 11:24<br>
-<h3>最後更新日期：</h3>2025-09-09 17:04
+<h3>最後更新日期：</h3>2025-09-11 11:35
 <br>
 <h3>版本：</h3>V 1.64<br>
 <br>
@@ -151,6 +151,7 @@ Windows 顯示語言：中文（台灣）<br>
 	1. 194、特殊字「𠫕」在介面顯示的狀況 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029
 	2. 195、當特殊字「𠫕」手動新增在自定字區，使用 zuav 出現亂碼的問題 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029
 	3. 196、自定詞庫功能 如果定義如 ucl、UCL 可以允許寫到原本的字根後面，如 0肥 1肥宅1 2肥宅2，大小寫也有問題，字根統一小寫
+    4. 197、自定詞庫功能 字根只能允許 a-z,.]['
 
 	(2025-08-10) v1.63 版：
 	病毒碼提交掃描：1.63
@@ -838,5 +839,6 @@ Ans：<br>
   <li>(Done 2025-09-09)194、特殊字「𠫕」在介面顯示的狀況 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029</li>
   <li>(Done 2025-09-09)195、當特殊字「𠫕」手動新增在自定字區，使用 zuav 出現亂碼的問題 #61 https://github.com/shadowjohn/UCL_LIU/issues/61 By Benson9954029</li>  
   <li>(Done 2025-09-11)196、自定詞庫功能 如果定義如 ucl、UCL 可以允許寫到原本的字根後面，如 0肥 1肥宅1 2肥宅2，大小寫也有問題，字根統一小寫</li>
+  <li>(Done 2025-09-11)197、自定詞庫功能 字根只能允許 a-z,.]['</li>
 </ul>
 <br>

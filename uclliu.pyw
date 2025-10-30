@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-VERSION = "1.64"
+VERSION = "1.65"
 import __main__  # 取得自己
 #from doctest import debug
 import os
@@ -34,6 +34,7 @@ import configparser
 #,,,z ,,,x 用thread去輸出字
 import thread
 import base64
+from io import BytesIO
 import random
 # 播放打字音用
 import pyaudio
@@ -52,8 +53,8 @@ PWD = os.path.dirname(os.path.realpath(sys.argv[0]))
 
 import clip
 
-
-
+# 正在輸入的視窗名稱
+GLOBAL_CURRENT_WINDOWNAME = ""
 #if "a" in []:
 #	#print("TEST")
 #sys.exit(0)
@@ -103,6 +104,12 @@ f_pass_app = [ "mstsc.exe","cyberpunk2077.exe","vncviewer.exe" ]
 # 2019-10-20 增加出字模式
 # 這是右下角 肥 的 icon
 UCL_PIC_BASE64 = "AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAACUWAAAlFgAAAAAAAAAAAAD/////+Pf4//n6+//8+/n/4ebh/+3y8f////////////n69v/u9Ov/6u7o/+ru6P/q7+n/8vjy//7+////////+vTu/5W0e/+w1cv/1Na0/1mxPP9mvWL/0+bm/+fk0/+BwmD/YsVI/16+Rv9evkb/X8BG/2jGWP+01cX///////bu5v9wq0D/cbmQ/9jhyf+h1oP/Rq4t/5LAuv+xtIf/Qagu/4fMg/+d3I7/m9uO/5zXif9juzf/Vatp/+ny+f///f3/nbFt/1OoZP/t9v3/7O3Y/1StOf+LvbT/pKd5/06sU//i7ff/////////////////p7Z7/0WnSP/U5e3//////7/MkP9NqE7/2+Tv/+vt2P9Trjn/jL21/6Wnef9OrFP/4+73/////////////////8bCnv9kqmD/0uPo///////MyKr/Q4k1/22cbf+uza7/VK47/4y9tf+lp3n/TqxT/+Pu9//////////////////18e3/7fDv//7+////////zsKu/0WbKP9HqTD/TLM7/0CqMP+NvbX/pad5/06sVP/j7vf//////////////////////////////////////87Crf9IoTX/m76j/2auOv81sCT/jb22/6Wne/9FrzT/iNKC/5faiP+X2of/ldmG/5TWiv/G3NT////////////Owq3/R6Az/7zh2v/H0Kj/Ragr/4y9tf+mp3z/QK8l/1y6Rf9IsCT/QrUw/165Qv9AriH/jbap////////////zsKt/0miNv+St5X/erBj/0iqM/+MvbX/pad6/02rUP/S1tn/cZRC/1yydv/g2tH/Zacx/4u4qf///////////87Crv9InS7/VZtD/0edPf9EpjT/jL21/6Wnef9PrVT/3uDo/3SVRf9guHz/7+ff/2mqM/+Lt6n////////////Owq7/R50o/1WkTf+Gsoz/VK48/4y9tf+lp3n/T61U/97g6P90lUX/YLd8/+/n3/9pqjP/i7ep////////////zsKt/0egM/+z1tD/4uHR/1StOf+MvbX/pad6/06tUv/X3eD/cpZE/122ef/n49f/Z6oy/4u3qf///////////87Crf9CnSP/Yaha/3SlVf89pCf/jLy0/6Sne/8/sCb/ZMVQ/0qyKP9EujX/aMVN/0SxIv+Mtqn////////////b0MX/dppZ/2+mVv9uplb/bJ9d/67Jyf/LyrX/icJ2/4jId/+KyXn/ish5/4jId/+Hw3v/vtDO/////////////f39//n1+P/59Pf/+fT3//n1+P/8/P3///7///77/v/++/7//vv+//77/v/++/7//vv+///+////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+icon_data = base64.b64decode(UCL_PIC_BASE64)  # PNG base64
+loader = gtk.gdk.PixbufLoader("ico")
+loader.write(icon_data)
+loader.close()
+UCL_PIC_pixbuf = loader.get_pixbuf()
+
 ICON_PATH = PWD + "\\icon.ico"
 DEFAULT_OUTPUT_TYPE = "DEFAULT"
 #BIG5
@@ -121,7 +128,7 @@ mystts = stts.kit()
 # 嘗試修正 ,,,z 在轉 簡字回字碼，有些語句如 「小当家->小當傢，天后->天後」這種問題
 from opencc import OpenCC
 myopencc = OpenCC('s2t')
-
+import ctypes
 
 
 # Debug 模式
@@ -145,6 +152,7 @@ def about_uclliu():
   _msg_text += "「,,,-」UI變小\n"
   _msg_text += "「,,,X」框字的字根轉回文字\n"
   _msg_text += "「,,,Z」框字的文字變成字根\n"
+  _msg_text += "「,,,BOX」自定詞庫\n"
   return _msg_text  
 
 if len(sys.argv)!=2:
@@ -203,7 +211,7 @@ except:
     #os.killpg(0, signal.SIGKILL)
     sys.exit(0)
          
-import ctypes
+
 import pythoncom, pyHook
 from pyHook import HookManager
 from pyHook.HookManager import HookConstants 
@@ -473,7 +481,10 @@ else:
   config['DEFAULT']['ENABLE_HALF_FULL']="1"    
 
 # GUI Font
-GLOBAL_FONT_FAMILY = "Mingliu,Serif,Malgun Gothic,roman,Mingliu-ExtB" #roman
+# Issue 198、自定詞庫字體顯示支援「🅅 U+1F145」、「☒ U+2612」
+# GLOBAL_FONT_FAMILY = "Mingliu,Serif,Malgun Gothic,roman,Mingliu-ExtB" #roman
+GLOBAL_FONT_FAMILY = "roman,Segoe UI Symbol,Noto Color Emoji,Arial Unicode MS,Segoe UI Emoji,Mingliu,Serif,Malgun Gothic,Mingliu-ExtB" 
+
 GUI_FONT_12 = my.utf8tobig5("%s %d" % (GLOBAL_FONT_FAMILY,int( float(config['DEFAULT']['ZOOM'])*12) ));
 GUI_FONT_14 = my.utf8tobig5("%s bold %d" % (GLOBAL_FONT_FAMILY,int(float(config['DEFAULT']['ZOOM'])*14) ));
 GUI_FONT_16 = my.utf8tobig5("%s bold %d" % (GLOBAL_FONT_FAMILY,int(float(config['DEFAULT']['ZOOM'])*16) ));
@@ -2167,6 +2178,7 @@ def senddata(data):
   global f_arr
   global f_big5_arr
   global os_version
+  global GLOBAL_CURRENT_WINDOWNAME
   #2019-10-20 增加出字強制選擇
   global DEFAULT_OUTPUT_TYPE
   debug_print("senddata")
@@ -2229,6 +2241,18 @@ def senddata(data):
       #SendKeysCtypes.SendKeys( data.encode('big5'),pause=0)
       return    
   
+  # 2025-10-30 如果是肥米的「自定詞庫編輯器」，強制使用複製貼上出字
+  if program_title == my.utf8tobig5(u"肥米自定字詞功能") or program_title == "UCLLIU Custom Dictionary Function":
+      debug_print(u"肥米自定詞庫編輯器...");
+      # 貼上模式，且要貼 big5 ?
+      win32clipboard.OpenClipboard() 
+      win32clipboard.EmptyClipboard()
+      win32clipboard.SetClipboardData(win32con.CF_UNICODETEXT, unicode(data))
+      win32clipboard.CloseClipboard()
+      SendKeysCtypes.SendKeys("^v",pause=0)
+      return
+
+
   # 2023-03-29 Win11 特產
   # 如果是 windows 11 且使用 notepad.exe 且版本是 11.2302.26.0
   # 如果 notepad 裡使用的字型是 MingLiU 或 MingLiU_HKSCS 就可以正常出字，反之只能用複製貼上出字才能正常@@?
@@ -2539,7 +2563,8 @@ def OnKeyboardEvent(event):
   global pinyi_version
   global is_need_use_phone
   global pinyi_version
-     
+  global tray
+  global GLOBAL_CURRENT_WINDOWNAME   
   # From : https://stackoverflow.com/questions/20021457/playing-mp3-song-on-python
   # 1.26 版，加入打字音的功能
   # 1.37 版，打字音不會因為壓著一直響
@@ -2792,30 +2817,12 @@ def OnKeyboardEvent(event):
         last_key = ""               
         if gamemode_btn.get_label()=="遊戲模式":
           gamemode_btn_click(gamemode_btn)
+      if my.strtolower(last_key[-6:])==",,,box":
+        # issue 201.「,,,BOX」 可以啟動「自定詞庫」
+        tray._menu_custom_dict(None,None)          
       if my.strtolower(last_key[-10:])==",,,version":
-        last_key= ""   
-        message = gtk.MessageDialog(type=gtk.MESSAGE_INFO, buttons=gtk.BUTTONS_OK)
-        message.set_position(gtk.WIN_POS_CENTER_ALWAYS)
-        message.set_keep_above(True)
-        _msg_text = about_uclliu()       
-        message.set_markup( _msg_text )
-        #toAlphaOrNonAlpha()
-        message.show()
-        toAlphaOrNonAlpha()  
-        response = message.run()
-        #toAlphaOrNonAlpha()
-        debug_print("Show Version")
-        #debug_print(response)
-        #debug_print(gtk.ResponseType.BUTTONS_OK)
-        if response == -5 or response == -4:
-          #message.hide()
-          message.destroy()
-          #toAlphaOrNonAlpha()  
-          play_ucl_label=""
-          ucl_find_data=[]
-          type_label_set_text()
-          toAlphaOrNonAlpha()
-          return False      
+        m_about(None,None)
+        
     #debug_print("LAST_KEY:" + last_key)
     if gamemode_btn.get_label()=="遊戲模式":      
       return True    
@@ -3130,6 +3137,7 @@ def OnKeyboardEvent(event):
       debug_print(('Time: %s' % (event.Time)))
       debug_print(('Window: %s' % (event.Window)))
       debug_print(('WindowName: %s' % (event.WindowName)))
+      GLOBAL_CURRENT_WINDOWNAME = event.WindowName
       debug_print(('Ascii: %s, %s' % (event.Ascii, chr(event.Ascii))))
       debug_print(('Key: %s' % (event.Key)))
       debug_print(('KeyID: %s' % (event.KeyID)))
@@ -3529,9 +3537,57 @@ def message(data=None):
   msg.run()
   msg.destroy()
 
+# Issue 203、避免重複開 關於肥米說明 視窗
+m_about_FLAG = False
+def m_about(a,b):  # if i ommit the data=none section python complains about too much arguments passed on greetme
+    global UCL_PIC_pixbuf
+    global m_about_FLAG
+    if m_about_FLAG == True:
+        return
+    m_about_FLAG = True
+    dlg = gtk.MessageDialog(
+        flags=gtk.DIALOG_MODAL,
+        type=gtk.MESSAGE_OTHER,
+        buttons=gtk.BUTTONS_OK
+    )
+    dlg.set_position(gtk.WIN_POS_CENTER_ALWAYS)
+      
+    # Issue 200、關於肥米輸入法，左上角，顯示「肥」Icon
+    image_widget = gtk.Image()
+    UCL_PIC_pixbuf_32 = UCL_PIC_pixbuf.scale_simple(32, 32, gtk.gdk.INTERP_NEAREST)
+    image_widget.set_from_pixbuf(UCL_PIC_pixbuf_32)
+    # icon 靠上
+    image_widget.set_alignment(xalign=0.5, yalign=0.2)  # yalign=0.2 靠上，xalign=0.5 水平置中
+    dlg.set_image(image_widget)
 
+    # 設定到 MessageDialog，算了，太多不好看
+    # dlg.set_icon(UCL_PIC_pixbuf)
+
+    dlg.set_keep_above(True)
+    _msg_text = about_uclliu()       
+    dlg.set_markup( _msg_text )
+    #toAlphaOrNonAlpha()
+    dlg.show()
+    dlg.show_all()
+    toAlphaOrNonAlpha()  
+    response = dlg.run()
+    #toAlphaOrNonAlpha()
+    debug_print("Show Version")
+    #debug_print(response)
+    #debug_print(gtk.ResponseType.BUTTONS_OK)
+    if response == -5 or response == -4:
+        m_about_FLAG = False
+        #dlg.hide()
+        dlg.destroy()
+        #toAlphaOrNonAlpha()  
+        play_ucl_label=""
+        ucl_find_data=[]
+        type_label_set_text()
+        toAlphaOrNonAlpha()
+    #return False
 class TrayIcon():
     systray = ""
+    my_custom_FLAG = False
     def __init__(self):
       global VERSION
       global PWD
@@ -3560,6 +3616,10 @@ class TrayIcon():
       #self.open_custom_dict_window_in_ui_thread()
       #global custom_win
       #if not custom_win:      
+      # Issue 202、「自定詞庫」最多只能開啟一個視窗，已存在就不顯示
+      if self.my_custom_FLAG == True:
+          return
+      self.my_custom_FLAG = True
       my_custom = custom_dict_window.CustomDictWindow(__main__)      
       #custom_win.show_all()
       
@@ -3571,8 +3631,9 @@ class TrayIcon():
       #global NOW_VOLUME
       global DEFAULT_OUTPUT_TYPE
       global UCL_PIC_BASE64           
+      global m_about
       menu_options = (
-          (my18.auto("1.關於肥米輸入法"), None, [self.m_about] ),          
+          (my18.auto("1.關於肥米輸入法"), None, [m_about] ),          
         )
       if gamemode_btn.get_label()=="正常模式":
         menu_options = menu_options + ((
@@ -3786,30 +3847,7 @@ class TrayIcon():
         config['DEFAULT']['SHOW_PHONE_CODE']="0"
       #切換後，都要存設定
       saveConfig()
-      self.reload_tray()       
-    def m_about(self,event,data=None):  # if i ommit the data=none section python complains about too much arguments passed on greetme
-      message = gtk.MessageDialog(type=gtk.MESSAGE_INFO, buttons=gtk.BUTTONS_OK)
-      message.set_position(gtk.WIN_POS_CENTER_ALWAYS)
-      message.set_keep_above(True)
-      _msg_text = about_uclliu()       
-      message.set_markup( _msg_text )
-      #toAlphaOrNonAlpha()
-      message.show()
-      toAlphaOrNonAlpha()  
-      response = message.run()
-      #toAlphaOrNonAlpha()
-      debug_print("Show Version")
-      #debug_print(response)
-      #debug_print(gtk.ResponseType.BUTTONS_OK)
-      if response == -5 or response == -4:
-        #message.hide()
-        message.destroy()
-        #toAlphaOrNonAlpha()  
-        play_ucl_label=""
-        ucl_find_data=[]
-        type_label_set_text()
-        toAlphaOrNonAlpha()
-        #return False
+      self.reload_tray()           
     def m_ctrlsp_switch(self,event,data=None):
       global config
       if config['DEFAULT']['CTRL_SP'] == "0":        
@@ -3888,6 +3926,7 @@ class TrayIcon():
 
 # generator tray
 tray = TrayIcon()
+
 
 
 

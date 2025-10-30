@@ -60,7 +60,7 @@ class kit:
         "10.【　】允許(Shift+Space)切換 全形/半形":"10. [   ] Enable (Shift_Space) Switch Half/Full mode",
         "11. 自定詞庫":"11. Custom Dictionary",
         "12. 離開(Quit)":"12. Quit",
-        "自定字詞功能": "Custom Dictionary Function",
+        "肥米自定字詞功能": "UCLLIU Custom Dictionary Function",
         "字根：": "Word Root: ",
         "出字詞：": "Output Words: ",
         "儲存": "Save",

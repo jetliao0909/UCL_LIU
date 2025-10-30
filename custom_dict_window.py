@@ -4,7 +4,6 @@ import pango
 import php
 import os
 import sys
-
 reload(sys)
 sys.setdefaultencoding("utf-8")
 my = php.kit()
@@ -44,15 +43,21 @@ class CustomDictWindow(object):
         self.custom_UI["parent"] = parent
         self.custom_UI["win"] = gtk.Window(type=gtk.WINDOW_TOPLEVEL)
         self.custom_UI["win"].set_modal(True)
-        self.custom_UI["win"].set_title(my18.auto("自定字詞功能"))
+        self.custom_UI["win"].set_title(my18.auto("肥米自定字詞功能"))
         self.custom_UI["win"].set_size_request(600, 400)
+
+        # set icon
+        # Issue. 199、自定詞庫視窗左上角，顯示「肥」Icon        
+        self.custom_UI["win"].set_icon(self.custom_UI["parent"].UCL_PIC_pixbuf)
+
         # 防最大化視窗大小
         self.custom_UI["win"].set_resizable(False)
         self.custom_UI["win"].set_position(gtk.WIN_POS_CENTER)
         self.custom_UI["win"].connect("destroy", gtk.main_quit)
-        self.GLOBAL_FONT_FAMILY = (
-            "Mingliu,Serif,Malgun Gothic,roman,Mingliu-ExtB"  # roman
-        )
+        # 改用原 uclliu.pyw 全域字型
+        #self.GLOBAL_FONT_FAMILY = (
+        #    "Segoe UI Symbol,Noto Color Emoji,Arial Unicode MS,Segoe UI Emoji,Mingliu,Serif,Malgun Gothic,Mingliu-ExtB"
+        #)
         vbox_main = gtk.VBox(False, 5)
         self.custom_UI["win"].add(vbox_main)
         vbox_main.set_border_width(5)
@@ -77,8 +82,7 @@ class CustomDictWindow(object):
         self.custom_UI["text_words"] = gtk.TextView()
         self.custom_UI["text_words"].set_wrap_mode(gtk.WRAP_WORD)
         self.custom_UI["text_words"].set_size_request(300, 50)
-
-        # self.custom_UI["text_words"].modify_font(pango.FontDescription("%s bold 12" % (self.GLOBAL_FONT_FAMILY)))
+        
         self.custom_UI["text_words"].set_left_margin(5)
         self.custom_UI["text_words"].set_right_margin(5)
         # border color #000
@@ -86,7 +90,7 @@ class CustomDictWindow(object):
         self.custom_UI["text_words"].set_editable(True)
         self.custom_UI["text_words"].set_cursor_visible(True)
         self.custom_UI["text_words"].modify_font(
-            pango.FontDescription("%s 14" % (self.GLOBAL_FONT_FAMILY))
+            pango.FontDescription("%s 14" % (self.custom_UI["parent"].GLOBAL_FONT_FAMILY))
         )
 
         hbox_input.pack_start(gtk.Label(my18.auto("出字詞：")), False, False, 0)
@@ -113,12 +117,12 @@ class CustomDictWindow(object):
         ):
             if i == 2:
                 renderer = gtk.CellRendererText()
-                renderer.set_property("font", "%s 12" % (self.GLOBAL_FONT_FAMILY))
+                renderer.set_property("font", "%s 12" % (self.custom_UI["parent"].GLOBAL_FONT_FAMILY))
                 column = gtk.TreeViewColumn(col_title, renderer, text=2)
 
             else:
                 renderer = gtk.CellRendererText()
-                renderer.set_property("font", "%s 12" % (self.GLOBAL_FONT_FAMILY))
+                renderer.set_property("font", "%s 12" % (self.custom_UI["parent"].GLOBAL_FONT_FAMILY))
                 column = gtk.TreeViewColumn(col_title, renderer, text=i)
             self.treeview.append_column(column)
 
@@ -172,6 +176,8 @@ class CustomDictWindow(object):
         # self.win.destroy()
         self.save_data()
         self.custom_UI["parent"].load_word_root()  # 重新載入字根
+        # 202、「自定詞庫」最多只能開啟一個視窗，已存在就不顯示
+        self.custom_UI["parent"].tray.my_custom_FLAG = False
 
     def focusOn_entry_key(self, widget, event):
         # print("focusOn_entry_key")
@@ -350,7 +356,7 @@ class CustomDictWindow(object):
 
         # Change font
         dialog.realize()
-        self.set_dialog_label_font(dialog, "%s 14" % self.GLOBAL_FONT_FAMILY)
+        self.set_dialog_label_font(dialog, "%s 14" % self.custom_UI["parent"].GLOBAL_FONT_FAMILY)
 
         response = dialog.run()        
 

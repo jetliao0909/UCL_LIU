@@ -170,7 +170,7 @@ Windows 顯示語言：中文（台灣）<br>
 	病毒碼提交掃描：1.63
 	https://www.microsoft.com/en-us/wdsi/submission/30d4454a-c369-41dc-87fd-d071cef06d68
 	1. 77、自定詞庫功能初步完成，設定完後會增加「custom.json」
-	   <img src="screenshot/uclliu_save_1.63.png">
+	   ![自定詞庫示意圖](screenshot/uclliu_save_1.63.png)
 	
 
 	(2025-06-22) v1.62 版：

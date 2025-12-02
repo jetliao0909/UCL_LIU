@@ -1,0 +1,55 @@
+[package]
+name = "uclliu"
+version = "0.1.0"
+edition = "2021"
+authors = ["FeatherMountain"]
+description = "肥米輸入法 - Rust 版本 MVP"
+license = "MIT"
+
+[dependencies]
+# Windows API
+windows = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_Threading",
+    "Win32_UI_Shell",
+    "Win32_Graphics_Gdi",
+] }
+
+# JSON 處理
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# 剪貼簿
+arboard = "3.2"
+
+# 鍵盤輸入模擬（暫時移除，改用 Windows API）
+# enigo = "0.1"
+
+# 系統托盤
+tray-icon = "0.10"
+
+# 非同步運行時（暫時不需要，先移除）
+# tokio = { version = "1.0", features = ["full"] }
+
+# 錯誤處理
+anyhow = "1.0"
+thiserror = "1.0"
+
+# 日誌
+log = "0.4"
+env_logger = "0.11"
+
+# 字串處理
+encoding_rs = "0.8"
+
+# 檔案系統
+walkdir = "2.4"
+fs2 = "0.4"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+

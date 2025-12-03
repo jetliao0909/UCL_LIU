@@ -232,10 +232,22 @@ impl InputMethodProcessor {
 
     /// 處理符號輸入（例如點號 `.`）
     /// 返回 (是否處理成功, 符號選擇的候選字)
+    /// 
+    /// 與 Python 版本一致：完全依賴字典表查找，不進行硬編碼處理
+    /// 字典表中的映射：
+    /// - "." → "。"
+    /// - "," → "，"
+    /// - ".." → "："
+    /// - ".," → "；"
+    /// 
+    /// 處理邏輯：
+    /// 1. 如果當前有字根，先查找 字根+符號 的組合（例如 "s." 對應 "？"，".." 對應 "："）
+    /// 2. 如果沒有字根，先將符號添加到字根中，然後查找組合（例如 "." + "." = ".."）
+    /// 3. 如果組合不存在，再查找單獨的符號（例如 "." 對應 "。"）
     pub fn handle_symbol_input(&mut self, symbol: char) -> (bool, Option<String>) {
         let current_code = self.state.current_code.clone();
         
-        // 如果當前有字根，嘗試查找 字根+符號 的組合（例如 "s." 對應 "？"）
+        // 如果當前有字根，嘗試查找 字根+符號 的組合（例如 "s." 對應 "？"，".." 對應 "："）
         if !current_code.is_empty() {
             let code_with_symbol = format!("{}{}", current_code, symbol);
             
@@ -246,21 +258,45 @@ impl InputMethodProcessor {
                     let selected = first_symbol.clone();
                     self.state.complement_selected = Some(selected.clone());
                     // 不清除字根，保持當前狀態，等待 Space 鍵
+                    debug!("✅ 從字典表找到符號映射: '{}' -> '{}'", code_with_symbol, selected);
                     return (true, Some(selected));
                 }
             }
         }
         
-        // 如果沒有字根，嘗試查找單獨的符號（例如 "." 對應 "。"）
-        let symbol_str = symbol.to_string();
-        if let Some(candidates) = self.dictionary.lookup(&symbol_str) {
-            if let Some(first_symbol) = candidates.first() {
-                // 找到單獨符號映射，存儲在狀態中等待 Space 鍵送出
-                let selected = first_symbol.clone();
-                self.state.complement_selected = Some(selected.clone());
-                // 不需要清除字根（因為沒有字根）
-                return (true, Some(selected));
+        // 如果沒有字根，先將符號添加到字根中，然後查找組合
+        // 這樣可以支持連續輸入符號（例如 ".." -> "："）
+        if current_code.is_empty() {
+            self.state.append_code(symbol);
+            let new_code = self.state.current_code.clone();
+            
+            // 查找組合（例如 "." + "." = ".."）
+            if let Some(candidates) = self.dictionary.lookup(&new_code) {
+                if let Some(first_symbol) = candidates.first() {
+                    // 找到組合映射，存儲在狀態中等待 Space 鍵送出
+                    let selected = first_symbol.clone();
+                    self.state.complement_selected = Some(selected.clone());
+                    debug!("✅ 從字典表找到符號組合映射: '{}' -> '{}'", new_code, selected);
+                    return (true, Some(selected));
+                }
             }
+            
+            // 如果組合不存在，查找單獨的符號（例如 "." 對應 "。"）
+            let symbol_str = symbol.to_string();
+            if let Some(candidates) = self.dictionary.lookup(&symbol_str) {
+                if let Some(first_symbol) = candidates.first() {
+                    // 找到單獨符號映射，存儲在狀態中等待 Space 鍵送出
+                    let selected = first_symbol.clone();
+                    self.state.complement_selected = Some(selected.clone());
+                    // 字根已經包含符號，保持不變
+                    debug!("✅ 從字典表找到單獨符號映射: '{}' -> '{}'", symbol_str, selected);
+                    return (true, Some(selected));
+                }
+            }
+            
+            // 如果都沒有找到，移除剛才添加的符號
+            self.state.current_code.pop();
+            return (false, None);
         }
         
         // 如果沒有找到符號映射，不處理（讓事件通過）
@@ -832,6 +868,64 @@ mod tests {
     }
 
     #[test]
+    fn test_double_dot_to_colon() {
+        // 測試 ".." 從字典表中查找對應 "："（全形冒號）
+        let mut code_map = HashMap::new();
+        code_map.insert(".".to_string(), vec!["。".to_string()]);
+        code_map.insert("..".to_string(), vec!["：".to_string()]);
+        
+        let dictionary = Dictionary {
+            code_to_chars: code_map,
+            pinyi_data: None,
+        };
+        let mut processor = InputMethodProcessor::new(dictionary);
+        
+        // 輸入第一個點號，應該先添加到字根，然後查找單獨的 "." -> "。"
+        let (success1, symbol1) = processor.handle_symbol_input('.');
+        assert!(success1);
+        assert_eq!(symbol1, Some("。".to_string()));
+        // 字根應該包含點號（因為先添加了）
+        assert_eq!(processor.state.current_code, ".");
+        
+        // 輸入第二個點號，字根已經是 "."，應該從字典表中找到 ".." -> "："
+        let (success, symbol_selected) = processor.handle_symbol_input('.');
+        assert!(success);
+        assert_eq!(symbol_selected, Some("：".to_string()));
+        assert_eq!(processor.state.complement_selected, Some("：".to_string()));
+        // 字根保持不變（等待 Space 鍵送出）
+        assert_eq!(processor.state.current_code, ".");
+    }
+    
+    #[test]
+    fn test_dot_comma_to_semicolon() {
+        // 測試 ".," 從字典表中查找對應 "；"（全形分號）
+        let mut code_map = HashMap::new();
+        code_map.insert(".".to_string(), vec!["。".to_string()]);
+        code_map.insert(",".to_string(), vec!["，".to_string()]);
+        code_map.insert(".,".to_string(), vec!["；".to_string()]);
+        
+        let dictionary = Dictionary {
+            code_to_chars: code_map,
+            pinyi_data: None,
+        };
+        let mut processor = InputMethodProcessor::new(dictionary);
+        
+        // 輸入第一個點號，應該先添加到字根，然後查找單獨的 "." -> "。"
+        let (success1, symbol1) = processor.handle_symbol_input('.');
+        assert!(success1);
+        assert_eq!(symbol1, Some("。".to_string()));
+        // 字根應該包含點號（因為先添加了）
+        assert_eq!(processor.state.current_code, ".");
+        
+        // 輸入逗號，字根已經是 "."，應該從字典表中找到 ".," -> "；"
+        let (success, symbol_selected) = processor.handle_symbol_input(',');
+        assert!(success);
+        assert_eq!(symbol_selected, Some("；".to_string()));
+        assert_eq!(processor.state.complement_selected, Some("；".to_string()));
+        // 字根保持不變（等待 Space 鍵送出）
+        assert_eq!(processor.state.current_code, ".");
+    }
+    
     fn test_symbol_input_standalone() {
         let mut code_map = HashMap::new();
         code_map.insert(".".to_string(), vec!["。".to_string()]);

@@ -24,8 +24,8 @@ serde_json = "1.0"
 # 剪貼簿
 arboard = "3.2"
 
-# 鍵盤輸入模擬（暫時移除，改用 Windows API）
-# enigo = "0.1"
+# 鍵盤輸入模擬（用於測試）
+enigo = "0.1"
 
 # 系統托盤
 tray-icon = "0.10"
@@ -47,6 +47,9 @@ encoding_rs = "0.8"
 # 檔案系統
 walkdir = "2.4"
 fs2 = "0.4"
+
+# GUI 框架（輸入窗口）
+fltk = { version = "1.4", features = ["fltk-bundled"] }
 
 [profile.release]
 opt-level = 3

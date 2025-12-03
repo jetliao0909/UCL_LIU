@@ -2,8 +2,8 @@
 
 use crate::AppState;
 use anyhow::Result;
-use log::{debug, info, warn};
-use std::sync::{Arc, Mutex};
+use log::{debug, info, warn, error};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use windows::{
     Win32::Foundation::*,
@@ -17,7 +17,10 @@ thread_local! {
     static APP_STATE: std::cell::RefCell<Option<Arc<AppState>>> = std::cell::RefCell::new(None);
     static SHOULD_QUIT: std::cell::RefCell<Option<Arc<AtomicBool>>> = std::cell::RefCell::new(None);
     static CTRL_PRESSED: std::cell::RefCell<bool> = std::cell::RefCell::new(false);
+    static ALT_PRESSED: std::cell::RefCell<bool> = std::cell::RefCell::new(false);
+    static SHIFT_PRESSED: std::cell::RefCell<bool> = std::cell::RefCell::new(false);
     static SHIFT_TOGGLE: std::cell::RefCell<bool> = std::cell::RefCell::new(false); // Shift 切換狀態：false=攔截，true=不攔截
+    static SHIFT_USED_WITH_OTHER_KEY: std::cell::RefCell<bool> = std::cell::RefCell::new(false); // Shift 是否與其他鍵組合過
 }
 
 /// 鍵盤鉤子管理器
@@ -59,7 +62,73 @@ impl KeyboardHook {
         }
     }
     
-    /// 運行訊息循環
+    /// 運行訊息循環（整合 fltk 事件處理）
+    pub fn run_with_fltk(&self, _app: &fltk::app::App, state: Arc<AppState>) -> Result<()> {
+        unsafe {
+            let mut msg = MSG::default();
+            
+            loop {
+                // 檢查是否應該退出
+                if self.should_quit.load(Ordering::Relaxed) {
+                    info!("收到退出信號，正在退出...");
+                    PostQuitMessage(0);
+                    break;
+                }
+                
+                // 處理 fltk 事件（非阻塞）
+                // 使用 app::check() 非阻塞地處理 fltk 事件
+                // 需要定期調用以處理窗口顯示和重繪
+                if fltk::app::check() {
+                    // 如果有 fltk 事件，處理並刷新
+                    fltk::app::flush();
+                }
+
+                // 只在有輸入變化時才更新 GUI 主窗口顯示
+                // 注意：這裡不在鍵盤鉤子回呼裡，而是在主迴圈中，避免阻塞鍵盤事件處理
+                if state.gui_needs_update.load(Ordering::Relaxed) {
+                    if let Ok(mut gui_manager) = state.gui_window_manager.lock() {
+                        gui_manager.update_display();
+                    }
+                    // 清除更新標誌
+                    state.gui_needs_update.store(false, Ordering::Relaxed);
+                }
+                
+                // 使用 PeekMessageW 非阻塞地檢查 Windows 消息
+                let has_msg = PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE).as_bool();
+                
+                if has_msg {
+                    // 處理 WM_QUIT
+                    if msg.message == WM_QUIT {
+                        break;
+                    }
+                    
+                    // 處理系統托盤菜單項點擊
+                    if msg.message == WM_COMMAND {
+                        let menu_id = msg.wParam.0 as u16;
+                        let notification_code = (msg.wParam.0 >> 16) as u16;
+                        debug!("收到 WM_COMMAND 消息，menu_id: {}, notification_code: {}", menu_id, notification_code);
+                        
+                        if notification_code == 0 && menu_id == 1001 {
+                            info!("✅ 系統托盤退出選項被點擊，準備退出...");
+                            self.should_quit.store(true, Ordering::Relaxed);
+                            PostQuitMessage(0);
+                            break;
+                        }
+                    }
+                    
+                    TranslateMessage(&msg);
+                    DispatchMessageW(&msg);
+                } else {
+                    // 沒有消息時，短暫休眠避免 CPU 佔用過高
+                    std::thread::sleep(std::time::Duration::from_millis(1));
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// 運行訊息循環（原始版本，保留以備用）
     pub fn run(&self) -> Result<()> {
         unsafe {
             let mut msg = MSG::default();
@@ -238,11 +307,97 @@ impl KeyboardHook {
             }
         }
         
-        // 先檢查 Shift 切換狀態
-        // 如果為 true（不攔截模式），只攔截 Shift 鍵，其他按鍵都通過
-        let shift_toggle = SHIFT_TOGGLE.with(|t| *t.borrow());
+        // 處理 Alt 鍵的按下和釋放（用於檢測 Ctrl+Alt 熱鍵）
+        // VK_MENU = 18 (Alt 鍵), VK_LMENU = 164 (左 Alt), VK_RMENU = 165 (右 Alt)
+        unsafe {
+            let kbd_struct = *(l_param.0 as *const KBDLLHOOKSTRUCT);
+            let vk_code = kbd_struct.vkCode;
+            let vk_value: u32 = vk_code.into();
+            
+            // 檢查左 Alt、右 Alt 或通用 Alt
+            if vk_value == VK_MENU.0 as u32 || vk_value == 164 || vk_value == 165 {
+                if is_key_down {
+                    ALT_PRESSED.with(|p| {
+                        *p.borrow_mut() = true;
+                    });
+                    debug!("Alt 鍵按下 (vk={})", vk_value);
+                } else if is_key_up {
+                    ALT_PRESSED.with(|p| {
+                        *p.borrow_mut() = false;
+                    });
+                    debug!("Alt 鍵釋放 (vk={})", vk_value);
+                }
+                // 注意：Alt 鍵的處理會在後面繼續，這裡不返回（讓它通過，除非是 Ctrl+Alt 組合）
+            }
+        }
         
-        // 處理 Shift 鍵的按下和釋放（切換攔截模式）
+        // 處理 Shift 鍵的按下和釋放（用於檢測 Ctrl+Shift+F 熱鍵）
+        unsafe {
+            let kbd_struct = *(l_param.0 as *const KBDLLHOOKSTRUCT);
+            let vk_code = kbd_struct.vkCode;
+            let vk_value: u32 = vk_code.into();
+            
+            // VK_SHIFT = 16, VK_LSHIFT = 160, VK_RSHIFT = 161
+            if vk_value == 16 || vk_value == 160 || vk_value == 161 {
+                if is_key_down {
+                    SHIFT_PRESSED.with(|p| {
+                        *p.borrow_mut() = true;
+                    });
+                    SHIFT_USED_WITH_OTHER_KEY.with(|f| {
+                        *f.borrow_mut() = false;
+                    });
+                    debug!("Shift 鍵按下 (vk={})", vk_value);
+                } else if is_key_up {
+                    SHIFT_PRESSED.with(|p| {
+                        *p.borrow_mut() = false;
+                    });
+                    debug!("Shift 鍵釋放 (vk={})", vk_value);
+                }
+                // 注意：Shift 鍵的處理會在後面繼續，這裡不返回
+            }
+        }
+        
+        // 檢查 Ctrl+Space 熱鍵（優先級最高，在模式檢查之前）
+        // Ctrl+Space 是 Windows 系統默認的輸入法切換鍵，遊戲通常會允許它通過
+        unsafe {
+            let kbd_struct = *(l_param.0 as *const KBDLLHOOKSTRUCT);
+            let vk_code = kbd_struct.vkCode;
+            let vk_value: u32 = vk_code.into();
+            
+            let ctrl_pressed = CTRL_PRESSED.with(|p| *p.borrow());
+            
+            // Ctrl + Space：切換 GUI 視窗顯示/隱藏
+            // VK_SPACE = 32
+            if is_key_down && vk_value == 32 && ctrl_pressed {
+                debug!("檢測到 Space 鍵按下，Ctrl: {}", ctrl_pressed);
+                info!("✅ 檢測到 Ctrl+Space 熱鍵，切換 GUI 視窗狀態列");
+                APP_STATE.with(|s| {
+                    if let Some(state) = s.borrow().as_ref() {
+                        info!("獲取 gui_window_manager...");
+                        let mut manager = state.gui_window_manager.lock().unwrap();
+                        let is_visible = manager.is_visible();
+                        info!("當前 GUI 視窗可見狀態: {}", is_visible);
+                        if is_visible {
+                            info!("隱藏 GUI 視窗");
+                            manager.hide();
+                        } else {
+                            info!("顯示 GUI 視窗（調用 manager.show()）");
+                            if let Err(e) = manager.show() {
+                                error!("顯示 GUI 視窗失敗: {}", e);
+                            } else {
+                                info!("GUI 視窗顯示完成");
+                            }
+                        }
+                    } else {
+                        error!("無法獲取 AppState！");
+                    }
+                });
+                return Ok(true); // 攔截熱鍵，不讓遊戲收到
+            }
+            
+        }
+        
+        // 處理 Shift 鍵的按下和釋放（參考 Python 版邏輯）
         unsafe {
             let kbd_struct = *(l_param.0 as *const KBDLLHOOKSTRUCT);
             let vk_code = kbd_struct.vkCode;
@@ -251,9 +406,31 @@ impl KeyboardHook {
             // VK_SHIFT = 16 (左 Shift 和右 Shift 都是 16，但可以通過 scanCode 區分)
             // VK_LSHIFT = 160, VK_RSHIFT = 161
             if vk_value == 16 || vk_value == 160 || vk_value == 161 {
-                debug!("檢測到 Shift 鍵事件: vk_value={}, is_key_down={}, is_key_up={}", vk_value, is_key_down, is_key_up);
                 if is_key_down {
-                    // Shift 鍵按下時，切換攔截狀態並清除現有字根
+                    // Shift 按下：記錄按下狀態，假設尚未與其他鍵組合
+                    SHIFT_PRESSED.with(|p| {
+                        *p.borrow_mut() = true;
+                    });
+                    SHIFT_USED_WITH_OTHER_KEY.with(|f| {
+                        *f.borrow_mut() = false;
+                    });
+                    debug!("Shift 鍵按下 (vk={})", vk_value);
+                    // 讓 Shift Down 事件通過，保留原本的組合鍵行為（如 Shift+數字）
+                    return Ok(false);
+                } else if is_key_up {
+                    debug!("Shift 鍵釋放 (vk={})", vk_value);
+                    // 檢查 Shift 期間是否有搭配其他鍵
+                    let used_with_other = SHIFT_USED_WITH_OTHER_KEY.with(|f| {
+                        let used = *f.borrow();
+                        *f.borrow_mut() = false;
+                        used
+                    });
+                    SHIFT_PRESSED.with(|p| {
+                        *p.borrow_mut() = false;
+                    });
+
+                    // 如果沒有與其他鍵組合，視為「單獨按 Shift」→ 切換模式（英/肥）
+                    if !used_with_other {
                     let old_state = SHIFT_TOGGLE.with(|t| *t.borrow());
                     let new_state = SHIFT_TOGGLE.with(|t| {
                         let mut toggle = t.borrow_mut();
@@ -267,24 +444,24 @@ impl KeyboardHook {
                     if !state_ref.current_code.is_empty() {
                         info!("Shift 切換，清除現有字根: {}", state_ref.current_code);
                         processor.clear();
+                            // 標記需要更新 GUI
+                            state.gui_needs_update.store(true, Ordering::Relaxed);
                     }
                     
-                    info!("Shift 鍵按下，切換攔截狀態: {} -> {}", 
-                        if old_state { "不攔截" } else { "攔截" },
-                        if new_state { "不攔截" } else { "攔截" });
+                        info!("Shift 單獨按下，切換攔截狀態: {} -> {}", 
+                            if old_state { "不攔截(英)" } else { "攔截(肥)" },
+                            if new_state { "不攔截(英)" } else { "攔截(肥)" });
                 }
                 
-                // Shift 鍵只用來切換攔截模式，不應該影響輸出的大小寫
-                // 因此我們攔截 Shift 鍵事件，阻止它影響大小寫
-                // 輸出的大小寫只由 CapsLock 狀態決定
-                debug!("Shift 鍵事件，攔截（只用來切換模式，不影響大小寫）");
-                return Ok(true); // 攔截 Shift 鍵，阻止它影響大小寫
+                    // Shift Up 事件一律放行，保留原本鍵盤行為
+                    return Ok(false);
+                }
             }
         }
         
-        // 如果不攔截模式，讓所有其他按鍵通過
-        // 注意：Shift 鍵只用來切換攔截模式，不影響輸出的大小寫
-        // 輸出的大小寫只由 CapsLock 狀態決定
+        // 先檢查 Shift 切換狀態（英/肥模式）
+        let shift_toggle = SHIFT_TOGGLE.with(|t| *t.borrow());
+        // 如果不攔截模式（英模式），讓所有其他按鍵通過
         if shift_toggle {
             // 檢查 CapsLock 狀態（只用於調試日誌）
             unsafe {
@@ -325,12 +502,45 @@ impl KeyboardHook {
             let vk_value: u32 = vk_code.into();
             
             debug!("處理按鍵 (key down): vk_code={:?}, vk_value={}", vk_code, vk_value);
+
+            // 如果 Shift 正在按著，且這不是 Shift 本身，表示 Shift 有搭配其他鍵
+            if is_key_down {
+                let shift_pressed_now = SHIFT_PRESSED.with(|p| *p.borrow());
+                if shift_pressed_now && vk_value != 16 && vk_value != 160 && vk_value != 161 {
+                    SHIFT_USED_WITH_OTHER_KEY.with(|f| {
+                        *f.borrow_mut() = true;
+                    });
+                }
+            }
             
             // Ctrl 鍵和 ESC 鍵（在 Ctrl+ESC 組合時）已經在上面處理過了，這裡跳過
             // 但單獨的 ESC 鍵還需要在下面處理（清除輸入）
             if vk_value == 17 {
                 // Ctrl 鍵已經在前面處理過，讓事件通過
                 debug!("跳過已處理的 Ctrl 鍵");
+                return Ok(false);
+            }
+            
+            // 如果輸入窗口可見，無論是否有焦點，都讓所有按鍵通過（除了熱鍵）
+            // 這樣可以避免鍵盤鉤子和輸入窗口同時處理按鍵導致衝突
+            let (gui_visible, gui_has_focus) = {
+                if let Ok(manager) = state.gui_window_manager.lock() {
+                    let visible = manager.is_visible();
+                    let has_focus = manager.has_focus();
+                    (visible, has_focus)
+                } else {
+                    (false, false)
+                }
+            };
+            
+            if gui_visible {
+                // 輸入窗口可見時，讓所有按鍵通過（除了熱鍵），讓輸入窗口自己決定是否處理
+                // 輸入窗口內部會檢查是否有焦點，沒有焦點時會忽略按鍵
+                if gui_has_focus {
+                    debug!("輸入窗口可見且有焦點，讓按鍵通過，讓輸入窗口處理 (vk={})", vk_value);
+                } else {
+                    debug!("輸入窗口可見但沒有焦點，讓按鍵通過，輸入窗口會忽略 (vk={})", vk_value);
+                }
                 return Ok(false);
             }
             
@@ -346,6 +556,8 @@ impl KeyboardHook {
                     if !state_ref.current_code.is_empty() {
                         info!("按下 ESC，清除輸入: {}", state_ref.current_code);
                         processor.clear();
+                        // 標記需要更新 GUI
+                        state.gui_needs_update.store(true, Ordering::Relaxed);
                         // 阻止 ESC 鍵事件傳遞
                         return Ok(true);
                     }
@@ -355,9 +567,14 @@ impl KeyboardHook {
                 
                 // Backspace (VK_BACK = 8)
                 8 => {
+                    let handled = {
                     let mut processor = state.input_processor.lock().unwrap();
-                    if processor.handle_backspace() {
+                        processor.handle_backspace()
+                    };
+                    if handled {
                         // 有字根可刪除，阻止事件
+                        // 標記需要更新 GUI
+                        state.gui_needs_update.store(true, Ordering::Relaxed);
                         return Ok(true);
                     }
                     // 沒有字根，讓事件通過
@@ -366,6 +583,7 @@ impl KeyboardHook {
                 
                 // Space (VK_SPACE = 32)
                 32 => {
+                    let (has_complement, has_input, text_opt) = {
                     let mut processor = state.input_processor.lock().unwrap();
                     
                     // 檢查是否有符號選擇（補碼或符號輸入）
@@ -374,12 +592,24 @@ impl KeyboardHook {
                     // 檢查是否有輸入的字根
                     let has_input = !processor.get_state().current_code.is_empty();
                     
-                    if has_complement || has_input {
+                        let text_opt = if has_complement || has_input {
                         // 嘗試選擇候選字（可能是補碼選擇、符號選擇或第一個候選字）
-                        let text_opt = processor.handle_space();
+                            let text = processor.handle_space();
                         
                         // 確保清除輸入（handle_space() 可能已經清除了，但我們確保總是清除）
                         processor.clear();
+                            
+                            text
+                        } else {
+                            None
+                        };
+                        
+                        (has_complement, has_input, text_opt)
+                    };
+                    
+                    if has_complement || has_input {
+                        // 標記需要更新 GUI
+                        state.gui_needs_update.store(true, Ordering::Relaxed);
                         
                         if let Some(text) = text_opt {
                             // 有候選字，送出文字並阻止 Space 事件
@@ -400,17 +630,30 @@ impl KeyboardHook {
                 
                 // Enter (VK_RETURN = 13)
                 13 => {
+                    let (has_input, text_opt) = {
                     let mut processor = state.input_processor.lock().unwrap();
                     
                     // 先檢查是否有輸入的字根
                     let has_input = !processor.get_state().current_code.is_empty();
                     
-                    if has_input {
+                        let text_opt = if has_input {
                         // 嘗試選擇第一個候選字（與 Space 鍵行為一致）
-                        let text_opt = processor.handle_space();
+                            let text = processor.handle_space();
                         
                         // 確保清除輸入（handle_space() 可能已經清除了，但我們確保總是清除）
                         processor.clear();
+                            
+                            text
+                        } else {
+                            None
+                        };
+                        
+                        (has_input, text_opt)
+                    };
+                    
+                    if has_input {
+                        // 標記需要更新 GUI
+                        state.gui_needs_update.store(true, Ordering::Relaxed);
                         
                         if let Some(text) = text_opt {
                             // 有候選字，送出文字並阻止 Enter 事件
@@ -462,31 +705,49 @@ impl KeyboardHook {
                     
                     debug!("處理字母鍵: vk={}, 轉換後={}", vk_value, ch);
                     
+                    let (success, complement_selected) = {
                     let mut processor = state.input_processor.lock().unwrap();
-                    let (success, complement_selected) = processor.handle_code_input(ch);
+                        processor.handle_code_input(ch)
+                    };
                     
                     if success {
                         // 檢查是否有補碼選擇的候選字
                         if complement_selected.is_some() {
                             // 補碼機制選擇了候選字，但不清除狀態，等待 Space 鍵送出
+                            let (current_code, complement_selected_val) = {
+                                let processor = state.input_processor.lock().unwrap();
                             let state_ref = processor.get_state();
+                                (state_ref.current_code.clone(), state_ref.complement_selected.clone())
+                            };
                             info!(
                                 "✅ 補碼選擇候選字（等待 Space 鍵送出）: '{}' -> {:?}",
-                                state_ref.current_code,
-                                state_ref.complement_selected
+                                current_code,
+                                complement_selected_val
                             );
+                            
+                            // 標記需要更新 GUI
+                            state.gui_needs_update.store(true, Ordering::Relaxed);
+                            
                             // 阻止 v/s 按鍵事件，但不立即送出候選字
                             return Ok(true);
                         }
                         
                         // 成功處理字根輸入，阻止原始按鍵事件
+                        let (current_code, candidates_len, current_page) = {
+                            let processor = state.input_processor.lock().unwrap();
                         let state_ref = processor.get_state();
+                            (state_ref.current_code.clone(), state_ref.candidates.len(), state_ref.get_current_page_candidates().clone())
+                        };
                         info!(
                             "✅ 輸入字根: '{}', 找到 {} 個候選字: {:?}",
-                            state_ref.current_code,
-                            state_ref.candidates.len(),
-                            state_ref.get_current_page_candidates()
+                            current_code,
+                            candidates_len,
+                            current_page
                         );
+                        
+                        // 標記需要更新 GUI
+                        state.gui_needs_update.store(true, Ordering::Relaxed);
+                        
                         return Ok(true);
                     }
                     debug!("字母鍵處理失敗，讓事件通過");
@@ -642,7 +903,10 @@ mod tests {
     use crate::dictionary::Dictionary;
     use std::collections::HashMap;
 
+    #[cfg(test)]
     fn create_test_state() -> AppState {
+        use std::sync::Mutex;
+        
         let mut code_map = HashMap::new();
         code_map.insert("a".to_string(), vec!["一".to_string(), "乙".to_string()]);
         code_map.insert("ab".to_string(), vec!["二".to_string()]);
@@ -653,14 +917,26 @@ mod tests {
         };
         
         let processor = InputMethodProcessor::new(dictionary.clone());
+        let input_processor = Arc::new(Mutex::new(processor));
+        let input_simulator = Arc::new(Mutex::new(crate::input_simulator::InputSimulator::new().unwrap()));
+        
+        use crate::gui_window::GuiWindowManager;
+        
+        let gui_needs_update = Arc::new(AtomicBool::new(false));
         
         AppState {
             dictionary: Arc::new(Mutex::new(dictionary)),
-            input_simulator: Arc::new(Mutex::new(crate::input_simulator::InputSimulator::new().unwrap())),
-            input_processor: Arc::new(Mutex::new(processor)),
+            input_simulator: input_simulator.clone(),
+            input_processor: input_processor.clone(),
+            gui_window_manager: Arc::new(Mutex::new(GuiWindowManager::new(
+                input_processor,
+                input_simulator.clone(),
+                gui_needs_update.clone(),
+            ))),
             is_ucl_mode: Arc::new(Mutex::new(true)),
             is_half_mode: Arc::new(Mutex::new(false)),
             should_quit: Arc::new(AtomicBool::new(false)),
+            gui_needs_update,
         }
     }
 

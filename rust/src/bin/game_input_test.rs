@@ -3,7 +3,7 @@
 //! 使用方法：
 //!   cargo run --bin game_input_test
 //!
-//! 這個工具會模擬遊戲輸入場景，測試輸入窗口功能
+//! 這個工具會模擬遊戲輸入場景，測試遊戲模式窗口功能
 
 mod game_input_test {
     use enigo::*;
@@ -86,13 +86,13 @@ mod game_input_test {
 
         /// 模擬 Ctrl+Space 熱鍵（唯一熱鍵）
         pub fn trigger_input_window(&mut self) {
-            info!("模擬 Ctrl+Space 熱鍵（觸發輸入窗口）");
+            info!("模擬 Ctrl+Space 熱鍵（觸發遊戲模式窗口）");
             self.key_combination(&[Key::Control, Key::Space]);
         }
 
-        /// 模擬在輸入窗口中輸入字根
+        /// 模擬在遊戲模式窗口中輸入字根
         pub fn input_code(&mut self, code: &str) {
-            info!("模擬在輸入窗口中輸入字根: {}", code);
+            info!("模擬在遊戲模式窗口中輸入字根: {}", code);
             self.type_text(code);
         }
 
@@ -129,13 +129,13 @@ mod game_input_test {
         }
 
         /// 模擬完整的輸入流程
-        /// 1. 觸發輸入窗口
+        /// 1. 觸發遊戲模式窗口
         /// 2. 輸入字根
         /// 3. 選擇候選字
         pub fn simulate_full_input_flow(&mut self, code: &str, candidate_index: Option<usize>) {
             info!("開始模擬完整的輸入流程");
             
-            // 步驟 1: 觸發輸入窗口
+            // 步驟 1: 觸發遊戲模式窗口
             self.trigger_input_window();
             thread::sleep(Duration::from_millis(200));
             
@@ -194,8 +194,8 @@ fn main() {
     
     let mut tester = GameInputTester::new();
     
-    // 測試 1: 觸發輸入窗口
-    println!("測試 1: 觸發輸入窗口 (Ctrl+Space)");
+    // 測試 1: 觸發遊戲模式窗口
+    println!("測試 1: 觸發遊戲模式窗口 (Ctrl+Space)");
     tester.trigger_input_window();
     thread::sleep(Duration::from_millis(500));
     
@@ -212,10 +212,10 @@ fn main() {
     println!();
     println!("測試完成！");
     println!();
-    println!("如果輸入窗口正常顯示並輸入了候選字，測試成功。");
+    println!("如果遊戲模式窗口正常顯示並輸入了候選字，測試成功。");
     println!("如果沒有，請檢查：");
     println!("1. 輸入法程序是否正在運行");
     println!("2. 日誌輸出是否有錯誤");
-    println!("3. 輸入窗口是否正確顯示");
+    println!("3. 遊戲模式窗口是否正確顯示");
 }
 

@@ -80,13 +80,13 @@ impl GameInputTester {
 
     /// 模擬 Ctrl+Space 熱鍵（唯一熱鍵）
     pub fn trigger_input_window(&mut self) {
-        info!("模擬 Ctrl+Space 熱鍵（觸發輸入窗口）");
+        info!("模擬 Ctrl+Space 熱鍵（觸發遊戲模式窗口）");
         self.key_combination(&[Key::Control, Key::Space]);
     }
 
-    /// 模擬在輸入窗口中輸入字根
+    /// 模擬在遊戲模式窗口中輸入字根
     pub fn input_code(&mut self, code: &str) {
-        info!("模擬在輸入窗口中輸入字根: {}", code);
+        info!("模擬在遊戲模式窗口中輸入字根: {}", code);
         self.type_text(code);
     }
 
@@ -123,13 +123,13 @@ impl GameInputTester {
     }
 
     /// 模擬完整的輸入流程
-    /// 1. 觸發輸入窗口
+    /// 1. 觸發遊戲模式窗口
     /// 2. 輸入字根
     /// 3. 選擇候選字
     pub fn simulate_full_input_flow(&mut self, code: &str, candidate_index: Option<usize>) {
         info!("開始模擬完整的輸入流程");
         
-        // 步驟 1: 觸發輸入窗口
+        // 步驟 1: 觸發遊戲模式窗口
         self.trigger_input_window();
         thread::sleep(Duration::from_millis(200));
         

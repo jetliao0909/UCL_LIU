@@ -1,6 +1,6 @@
 //! GUI 主窗口模組
 //! 用於顯示字根和候選字（類似 Python 版本的 type_label 和 word_label）
-//! 同時作為輸入窗口，能夠接收鍵盤輸入（用於 Raw Input 遊戲）
+//! 同時作為遊戲模式窗口，能夠接收鍵盤輸入（用於 Raw Input 遊戲）
 
 use crate::input_method::InputMethodProcessor;
 use crate::input_simulator::InputSimulator;
@@ -35,6 +35,10 @@ pub struct GuiWindow {
     gui_needs_update: Arc<AtomicBool>,
     is_input_mode: bool, // 是否為輸入模式（窗口有焦點時接收鍵盤輸入）
     accumulated_text: Arc<Mutex<String>>, // 累積的文字（待貼上到遊戲）
+    /// 與全域狀態共享的可見旗標（給鍵盤鉤子查詢，不再在鉤子裡鎖 GUI 管理器）
+    gui_visible_flag: Arc<AtomicBool>,
+    /// 與全域狀態共享的焦點旗標
+    gui_has_focus_flag: Arc<AtomicBool>,
 }
 
 impl GuiWindow {
@@ -43,6 +47,8 @@ impl GuiWindow {
         processor: Arc<Mutex<InputMethodProcessor>>,
         input_simulator: Arc<Mutex<InputSimulator>>,
         gui_needs_update: Arc<AtomicBool>,
+        gui_visible_flag: Arc<AtomicBool>,
+        gui_has_focus_flag: Arc<AtomicBool>,
     ) -> Result<Self> {
         // 獲取屏幕尺寸，將窗口放在屏幕右下角
         let screen_w = app::screen_size().0 as i32;
@@ -53,12 +59,12 @@ impl GuiWindow {
         let win_y = screen_h - win_h - 50; // 距離底部 50 像素（避免被任務欄遮擋）
 
         let mut window = Window::new(win_x, win_y, win_w, win_h, "");
-        // 顯示邊框，讓使用者更容易看到視窗位置
+        // 顯示邊框，讓使用者更容易看到窗口位置
         window.set_border(true);
         window.set_color(Color::from_rgb(222, 222, 222)); // 淺灰色背景，類似 Python 版本
         window.make_modal(false);
 
-        // 設置窗口可以接收鍵盤焦點（重要：用於輸入窗口模式）
+        // 設置窗口可以接收鍵盤焦點（重要：用於遊戲模式）
         // 注意：ESC 鍵不再關閉窗口，改為在 handle_keyboard_event 中處理
 
         // 字根顯示框（類似 Python 的 type_label）
@@ -89,19 +95,22 @@ impl GuiWindow {
         word_frame.set_label("");
         accumulated_text_frame.set_label("待貼上文字將顯示在這裡... (已自動複製到剪貼簿)");
 
-        // 設置鍵盤事件處理（用於輸入窗口模式）
+        // 設置鍵盤事件處理（用於遊戲模式）
         let processor_clone = processor.clone();
         let input_simulator_clone = input_simulator.clone();
         let gui_needs_update_clone = gui_needs_update.clone();
         let accumulated_text_clone = Arc::new(Mutex::new(String::new()));
         let accumulated_text_for_handler = accumulated_text_clone.clone();
 
+        let gui_has_focus_for_handler = gui_has_focus_flag.clone();
+
         window.handle(move |w, ev| {
             // 讓 FLTK 處理 Focus/Unfocus，並在鍵盤事件時直接詢問窗口是否有焦點
             match ev {
                 Event::Focus => {
-                    debug!("輸入窗口獲得焦點");
-                    // 視窗獲得焦點時，提高透明度，讓使用者明顯感覺「現在可以打字」
+                    debug!("遊戲模式窗口獲得焦點");
+                    gui_has_focus_for_handler.store(true, Ordering::Relaxed);
+                    // 窗口獲得焦點時，提高透明度，讓使用者明顯感覺「現在可以打字」
                     unsafe {
                         let raw = w.raw_handle();
                         let hwnd = HWND(raw as isize);
@@ -116,8 +125,9 @@ impl GuiWindow {
                     return false;
                 }
                 Event::Unfocus => {
-                    debug!("輸入窗口失去焦點");
-                    // 視窗失去焦點時，幾乎完全透明，避免誤會它有焦點
+                    debug!("遊戲模式窗口失去焦點");
+                    gui_has_focus_for_handler.store(false, Ordering::Relaxed);
+                    // 窗口失去焦點時，幾乎完全透明，避免誤會它有焦點
                     unsafe {
                         let raw = w.raw_handle();
                         let hwnd = HWND(raw as isize);
@@ -154,6 +164,8 @@ impl GuiWindow {
             gui_needs_update,
             is_input_mode: false,
             accumulated_text: accumulated_text_clone, // 使用同一個 Arc，這樣 handler 和窗口可以共享
+            gui_visible_flag,
+            gui_has_focus_flag,
         })
     }
 
@@ -175,7 +187,7 @@ impl GuiWindow {
         }
     }
 
-    /// 處理鍵盤事件（輸入窗口模式）
+    /// 處理鍵盤事件（遊戲模式）
     /// 當窗口有焦點時，直接處理鍵盤輸入，不依賴鍵盤鉤子
     ///
     /// **重要**：選擇候選字後，文字會累積在窗口中，並自動複製到剪貼簿
@@ -194,14 +206,14 @@ impl GuiWindow {
                 // 檢查窗口是否有焦點，如果沒有焦點則不處理鍵盤事件
                 // 這可以避免在窗口沒有焦點時處理鍵盤事件導致衝突
                 if !w.has_focus() {
-                    debug!("輸入窗口沒有焦點，忽略鍵盤事件");
+                    debug!("遊戲模式窗口沒有焦點，忽略鍵盤事件");
                     return false; // 讓事件通過，不處理
                 }
 
                 let key = app::event_key();
                 let key_char = app::event_text();
 
-                debug!("輸入窗口收到按鍵: key={:?}, char='{}'", key, key_char);
+                debug!("遊戲模式窗口收到按鍵: key={:?}, char='{}'", key, key_char);
 
                 // 處理 ESC 鍵（清除當前輸入的字根，但不關閉窗口）
                 if key == Key::Escape {
@@ -269,12 +281,14 @@ impl GuiWindow {
                     }
                 }
 
-                // 處理 Space 鍵（選擇第一個候選字）
+                // 處理 Space 鍵（選擇第一個候選字，或清除查不到字的字根）
                 if key == Key::from_char(' ') || key_char == " " {
-                    if let Some(text) = {
+                    let result = {
                         let mut proc = processor.lock().unwrap();
                         proc.handle_space()
-                    } {
+                    };
+
+                    if let Some(text) = result {
                         // 有候選字，累積到文字緩衝區並自動複製到剪貼簿
                         let text_to_copy = {
                             let mut acc_text = accumulated_text.lock().unwrap();
@@ -289,24 +303,46 @@ impl GuiWindow {
 
                         gui_needs_update.store(true, Ordering::Relaxed);
                         return true; // 已處理
+                    } else {
+                        // 沒有候選字（包含「查不到字 → Space 清除字根」的情況），更新顯示
+                        gui_needs_update.store(true, Ordering::Relaxed);
+                        // 遊戲模式下不用真的輸出空格，直接攔截即可
+                        return true;
                     }
-                    // 沒有候選字，讓 Space 鍵通過（可能用戶想輸入空格）
-                    return false;
                 }
 
-                // 處理 Enter 鍵（清除累積的文字）
+                // 處理 Enter 鍵：清除「所有字根」以及「累積文字」
                 if key == Key::Enter {
+                    // 先清除輸入法狀態（字根、候選、補碼等）
+                    {
+                        let mut proc = processor.lock().unwrap();
+                        let state = proc.get_state();
+                        if !state.current_code.is_empty()
+                            || !state.candidates.is_empty()
+                            || state.complement_selected.is_some()
+                        {
+                            info!(
+                                "Enter: 清除當前字根與候選: code='{}', candidates={}",
+                                state.current_code,
+                                state.candidates.len()
+                            );
+                        }
+                        proc.clear();
+                    }
+
+                    // 再清除累積文字（打字區）
                     {
                         let mut acc_text = accumulated_text.lock().unwrap();
                         if !acc_text.is_empty() {
                             acc_text.clear();
-                            info!("✅ Enter: 已清除累積文字");
-                            gui_needs_update.store(true, Ordering::Relaxed);
-                            return true; // 已處理
+                            info!("✅ Enter: 已清除累積文字與字根");
+                        } else {
+                            info!("Enter: 沒有累積文字，只清除字根狀態");
                         }
                     }
-                    // 如果沒有累積文字，讓 Enter 鍵通過
-                    return false;
+
+                    gui_needs_update.store(true, Ordering::Relaxed);
+                    return true; // 已處理，不讓 Enter 傳出去
                 }
 
                 // 處理 Backspace 鍵
@@ -319,7 +355,26 @@ impl GuiWindow {
                         gui_needs_update.store(true, Ordering::Relaxed);
                         return true; // 已處理
                     }
-                    // 沒有字根可刪除，讓 Backspace 鍵通過
+                    // 沒有字根可刪除時，改為刪除「打字區」最後一個字
+                    {
+                        let mut acc_text = accumulated_text.lock().unwrap();
+                        if let Some(ch) = acc_text.pop() {
+                            let remaining = acc_text.clone();
+                            info!(
+                                "Backspace: 刪除累積文字最後一字 '{}', 剩餘: {}",
+                                ch, remaining
+                            );
+
+                            // 更新剪貼簿為新的累積文字（如果還有內容）
+                            if !remaining.is_empty() {
+                                Self::copy_to_clipboard(&remaining);
+                            }
+
+                            gui_needs_update.store(true, Ordering::Relaxed);
+                            return true; // 已處理
+                        }
+                    }
+                    // 沒有字根也沒有累積文字，讓 Backspace 鍵通過
                     return false;
                 }
 
@@ -367,6 +422,37 @@ impl GuiWindow {
                     return false;
                 }
 
+                // 先處理與肥模式一致的符號輸入（例如點號、逗號）
+                if !key_char.is_empty() {
+                    if let Some(ch) = key_char.chars().next() {
+                        // 只處理 ASCII 符號，避免誤吃已組好的中文字
+                        if ch == '.' || ch == ',' {
+                            let (success, symbol_selected) = {
+                                let mut proc = processor.lock().unwrap();
+                                proc.handle_symbol_input(ch)
+                            };
+
+                            if success {
+                                if let Some(symbol) = symbol_selected {
+                                    // 符號映射找到候選，但與肥模式一致：只設定狀態，等待 Space 送出
+                                    // 這裡不直接累積文字，避免按一次 '.' 就出現兩次符號
+                                    info!(
+                                        "符號輸入 '{}', 映射為 '{}', 等待 Space 送出",
+                                        ch, symbol
+                                    );
+                                }
+                                // 不論是否有 symbol_selected，只要 success，代表這顆符號已被輸入法處理：
+                                // - 可能只是設定 complement_selected
+                                // - 或字根+符號的組合已生效
+                                // 在遊戲模式下，更新 GUI 顯示即可，實際出字交給後續的 Space/數字鍵處理
+                                gui_needs_update.store(true, Ordering::Relaxed);
+                                return true; // 已處理（攔截原始符號）
+                            }
+                            // 如果 handle_symbol_input 返回 false，代表不認得這個符號，交給下面的一般字元處理
+                        }
+                    }
+                }
+
                 // 處理一般輸入文字（例如使用系統輸入法輸入的中文字、全形符號等）
                 // 這些通常會以已組字完成的字元出現在 event_text() 裡
                 if !key_char.is_empty() {
@@ -390,8 +476,8 @@ impl GuiWindow {
                     }
                 }
 
-                // 其他非文字按鍵：攔截（避免在輸入窗口模式下觸發奇怪行為）
-                debug!("輸入窗口攔截非文字按鍵: {:?}", key);
+                // 其他非文字按鍵：攔截（避免在遊戲模式下觸發奇怪行為）
+                debug!("遊戲模式窗口攔截非文字按鍵: {:?}", key);
                 true // 已處理（攔截）
             }
             _ => false, // 其他事件不處理
@@ -400,7 +486,7 @@ impl GuiWindow {
 
     /// 顯示窗口
     pub fn show(&mut self) {
-        debug!("顯示 GUI 視窗（輸入窗口模式）");
+        debug!("顯示 GUI 視窗（遊戲模式）");
 
         // 確保窗口可見
         if !self.window.shown() {
@@ -421,7 +507,7 @@ impl GuiWindow {
             acc_text.clear();
         }
 
-        info!("✅ 輸入窗口已顯示，請點擊窗口給予焦點後開始輸入");
+        info!("✅ 遊戲模式窗口已顯示，請點擊窗口給予焦點後開始輸入");
         info!("💡 提示：選擇候選字後，文字會累積在窗口中，並自動複製到剪貼簿");
         info!("💡 提示：輸入完成後，切換回遊戲按 Ctrl+V 貼上全部文字");
 
@@ -435,7 +521,7 @@ impl GuiWindow {
             let new_ex_style = ex_style | WS_EX_LAYERED.0 as isize;
             let _ = SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_ex_style);
 
-            // 將整個視窗 alpha 設為 100（半透明）
+            // 將整個窗口 alpha 設為 100（半透明）
             // 若想要更透明或更不透明，可調整第三個參數 0~255
             let _ = SetLayeredWindowAttributes(
                 hwnd,
@@ -444,7 +530,7 @@ impl GuiWindow {
                 LWA_ALPHA,
             );
 
-            // 嘗試將視窗設為最上層，避免被其他視窗（例如遊戲）遮住
+            // 嘗試將窗口設為最上層，避免被其他窗口（例如遊戲）遮住
             let _ = SetWindowPos(
                 hwnd,
                 HWND_TOPMOST,
@@ -501,18 +587,8 @@ impl GuiWindow {
 
             self.window.hide();
             self.is_input_mode = false;
-            info!("輸入窗口已隱藏，停止接收鍵盤輸入");
+            info!("遊戲模式窗口已隱藏，停止接收鍵盤輸入");
         }
-    }
-
-    /// 檢查窗口是否可見
-    pub fn visible(&self) -> bool {
-        self.window.shown()
-    }
-
-    /// 檢查窗口是否有焦點
-    pub fn has_focus(&self) -> bool {
-        self.window.has_focus()
     }
 
     /// 更新顯示（根據處理器狀態更新字根和候選字顯示）
@@ -597,6 +673,8 @@ pub struct GuiWindowManager {
     input_simulator: Arc<Mutex<InputSimulator>>,
     gui_needs_update: Arc<AtomicBool>,
     visible: bool, // 自行追蹤可見狀態，避免依賴底層 shown() 行為
+    gui_visible_flag: Arc<AtomicBool>,
+    gui_has_focus_flag: Arc<AtomicBool>,
 }
 
 impl GuiWindowManager {
@@ -605,6 +683,8 @@ impl GuiWindowManager {
         processor: Arc<Mutex<InputMethodProcessor>>,
         input_simulator: Arc<Mutex<InputSimulator>>,
         gui_needs_update: Arc<AtomicBool>,
+        gui_visible_flag: Arc<AtomicBool>,
+        gui_has_focus_flag: Arc<AtomicBool>,
     ) -> Self {
         Self {
             window: None,
@@ -612,6 +692,8 @@ impl GuiWindowManager {
             input_simulator,
             gui_needs_update,
             visible: false,
+            gui_visible_flag,
+            gui_has_focus_flag,
         }
     }
 
@@ -622,6 +704,8 @@ impl GuiWindowManager {
                 self.processor.clone(),
                 self.input_simulator.clone(),
                 self.gui_needs_update.clone(),
+                self.gui_visible_flag.clone(),
+                self.gui_has_focus_flag.clone(),
             )?;
             self.window = Some(window);
         }
@@ -632,6 +716,7 @@ impl GuiWindowManager {
         }
         // 標記為可見
         self.visible = true;
+        self.gui_visible_flag.store(true, Ordering::Relaxed);
 
         Ok(())
     }
@@ -644,6 +729,8 @@ impl GuiWindowManager {
         }
         // 標記為不可見
         self.visible = false;
+        self.gui_visible_flag.store(false, Ordering::Relaxed);
+        self.gui_has_focus_flag.store(false, Ordering::Relaxed);
     }
 
     /// 更新顯示
@@ -669,7 +756,7 @@ impl GuiWindowManager {
         // 從實際窗口讀取焦點狀態，直接調用 GuiWindow 的方法
         // 這樣可以確保焦點狀態是準確的，不會有緩存不同步的問題
         if let Some(ref window) = self.window {
-            window.has_focus()
+            window.window.has_focus()
         } else {
             false
         }
@@ -719,12 +806,16 @@ mod tests {
     #[test]
     fn test_gui_window_creation() {
         let (processor, input_simulator, gui_needs_update) = create_test_components();
+        let gui_visible_flag = Arc::new(AtomicBool::new(false));
+        let gui_has_focus_flag = Arc::new(AtomicBool::new(false));
 
         // 創建窗口應該成功
         let window_result = GuiWindow::new(
             processor.clone(),
             input_simulator.clone(),
             gui_needs_update.clone(),
+            gui_visible_flag,
+            gui_has_focus_flag,
         );
 
         assert!(window_result.is_ok(), "窗口創建應該成功");
@@ -734,11 +825,15 @@ mod tests {
     #[test]
     fn test_gui_window_manager_creation() {
         let (processor, input_simulator, gui_needs_update) = create_test_components();
+        let gui_visible_flag = Arc::new(AtomicBool::new(false));
+        let gui_has_focus_flag = Arc::new(AtomicBool::new(false));
 
         let manager = GuiWindowManager::new(
             processor.clone(),
             input_simulator.clone(),
             gui_needs_update.clone(),
+            gui_visible_flag,
+            gui_has_focus_flag,
         );
 
         assert!(!manager.is_visible(), "初始狀態應該不可見");
@@ -747,7 +842,7 @@ mod tests {
     /// 測試：鍵盤事件處理 - 字母鍵輸入（模擬窗口接收鍵盤事件）
     ///
     /// 這個測試驗證窗口能夠處理鍵盤輸入，不依賴鍵盤鉤子
-    /// 這是「輸入窗口模式」的核心功能，用於支援 Raw Input 遊戲
+    /// 這是「遊戲模式」的核心功能，用於支援 Raw Input 遊戲
     #[test]
     fn test_window_keyboard_event_letter_input() {
         let (processor, _input_simulator, _gui_needs_update) = create_test_components();
@@ -906,7 +1001,7 @@ mod tests {
         }
     }
 
-    /// 測試：輸入窗口模式的核心特性
+    /// 測試：遊戲模式的核心特性
     ///
     /// 驗證窗口能夠獨立處理鍵盤輸入，不依賴鍵盤鉤子
     /// 這是支援 Raw Input 遊戲的關鍵特性
@@ -953,7 +1048,7 @@ mod tests {
 
     /// 測試：連續輸入多個字
     ///
-    /// 驗證窗口能夠連續處理多個字的輸入（輸入窗口模式的核心功能）
+    /// 驗證窗口能夠連續處理多個字的輸入（遊戲模式的核心功能）
     #[test]
     fn test_input_window_mode_continuous_input() {
         let (processor, _input_simulator, _gui_needs_update) = create_test_components();
@@ -991,7 +1086,7 @@ mod tests {
 
     /// 測試：驗證窗口能夠接收鍵盤輸入（不依賴鍵盤鉤子）
     ///
-    /// 這是「輸入窗口模式」的核心測試，驗證窗口能夠：
+    /// 這是「遊戲模式」的核心測試，驗證窗口能夠：
     /// 1. 獨立接收鍵盤輸入（不依賴 WH_KEYBOARD_LL 鉤子）
     /// 2. 處理字根輸入
     /// 3. 處理候選字選擇

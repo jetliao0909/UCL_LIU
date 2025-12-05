@@ -11,7 +11,6 @@ Cargo.lock
 *~
 
 # 執行檔
-*.exe
 *.dll
 *.pdb
 

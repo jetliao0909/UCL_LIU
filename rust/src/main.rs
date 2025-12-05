@@ -33,6 +33,12 @@ pub struct AppState {
     input_simulator: Arc<Mutex<InputSimulator>>,
     input_processor: Arc<Mutex<InputMethodProcessor>>,
     gui_window_manager: Arc<Mutex<GuiWindowManager>>,
+    /// 待貼上的文字（由鍵盤鉤子產生，由主迴圈送出）
+    pending_paste_text: Arc<Mutex<Option<String>>>,
+    /// 遊戲模式窗口目前是否可見
+    gui_visible: Arc<AtomicBool>,
+    /// 遊戲模式窗口目前是否有焦點
+    gui_has_focus: Arc<AtomicBool>,
     is_ucl_mode: Arc<Mutex<bool>>,  // 肥/英模式
     is_half_mode: Arc<Mutex<bool>>, // 半/全模式
     should_quit: Arc<AtomicBool>,   // 退出標誌
@@ -43,6 +49,9 @@ impl AppState {
     fn new() -> Result<Self> {
         let dictionary = Arc::new(Mutex::new(Dictionary::load()?));
         let input_simulator = Arc::new(Mutex::new(InputSimulator::new()?));
+        let pending_paste_text = Arc::new(Mutex::new(None));
+        let gui_visible = Arc::new(AtomicBool::new(false));
+        let gui_has_focus = Arc::new(AtomicBool::new(false));
         
         // 創建輸入法處理器
         let dict_for_processor = dictionary.lock().unwrap();
@@ -59,6 +68,8 @@ impl AppState {
             input_processor.clone(),
             input_simulator.clone(),
             gui_needs_update.clone(),
+            gui_visible.clone(),
+            gui_has_focus.clone(),
         )));
         
         Ok(Self {
@@ -66,6 +77,9 @@ impl AppState {
             input_simulator,
             input_processor,
             gui_window_manager,
+            pending_paste_text,
+            gui_visible,
+            gui_has_focus,
             is_ucl_mode: Arc::new(Mutex::new(true)),
             is_half_mode: Arc::new(Mutex::new(false)),
             should_quit: Arc::new(AtomicBool::new(false)),
@@ -100,12 +114,6 @@ fn main() -> Result<()> {
     
     // 創建系統托盤（需要 should_quit 引用）
     let _tray = TrayIcon::new(state.clone())?;
-    
-    // 顯示 GUI 主窗口
-    {
-        let mut gui_manager = state.gui_window_manager.lock().unwrap();
-        gui_manager.show()?;
-    }
     
     info!("肥米輸入法已啟動，等待輸入...");
     info!("按 Ctrl+Space 打開/關閉右下角 GUI 狀態列（遊戲模式）");

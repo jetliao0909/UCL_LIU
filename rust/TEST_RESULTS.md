@@ -32,6 +32,8 @@
    - ✅ `test_symbol_input` - 測試符號輸入（例如 `s.` 對應 `？`）
    - ✅ `test_symbol_input_not_found` - 測試符號輸入未找到映射的情況
    - ✅ `test_symbol_input_standalone` - 測試單獨符號輸入（例如 `.` 對應 `。`，`,` 對應 `，`）
+   - ✅ `test_double_dot_to_colon` - 測試連續輸入兩個點號轉換為全形冒號（`..` → `：`）
+   - ✅ `test_dot_comma_to_semicolon` - 測試點號後輸入逗號轉換為全形分號（`.,` → `；`）
    - ✅ `test_handle_backspace` - 測試處理 Backspace
    - ✅ `test_handle_space` - 測試處理 Space（選擇第一個候選字）
    - ✅ `test_handle_enter` - 測試處理 Enter（送出字根）
@@ -59,10 +61,25 @@
    - ✅ `test_character_lowercase_conversion` - 測試字符轉小寫
    - ✅ `test_vk_code_to_char_conversion` - 測試虛擬鍵碼到字符轉換
 
+7. **GUI 窗口測試（輸入窗口模式 - 支援 Raw Input 遊戲）**
+   - ✅ `test_gui_window_creation` - 測試窗口創建成功
+   - ✅ `test_gui_window_manager_creation` - 測試窗口管理器創建成功
+   - ✅ `test_window_keyboard_event_letter_input` - 測試字母鍵輸入處理
+   - ✅ `test_window_keyboard_event_number_selection` - 測試數字鍵選擇候選字
+   - ✅ `test_window_keyboard_event_space_selection` - 測試 Space 鍵選擇第一個候選字
+   - ✅ `test_window_keyboard_event_backspace` - 測試 Backspace 鍵刪除字根
+   - ✅ `test_window_keyboard_event_escape_clear` - 測試 ESC 鍵清除輸入
+   - ✅ `test_input_window_mode_independent_input` - 測試輸入窗口模式的核心特性（獨立處理鍵盤輸入）
+   - ✅ `test_input_window_mode_continuous_input` - 測試連續輸入多個字
+   - ✅ `test_window_can_receive_keyboard_input_without_hook` - **核心測試**：驗證窗口能夠接收鍵盤輸入（不依賴鍵盤鉤子）
+     - 這是支援 Raw Input 遊戲的關鍵測試
+     - 驗證窗口能夠獨立處理鍵盤輸入，不依賴 `WH_KEYBOARD_LL` 鉤子
+     - 驗證字根輸入、候選字選擇、特殊按鍵處理
+
 ### 測試執行結果
 
 ```
-running 36 tests
+running 40 tests
 test input_method::tests::test_candidate_pagination ... ok
 test input_method::tests::test_code_limit_processor ... ok
 test input_method::tests::test_handle_space ... ok
@@ -88,8 +105,32 @@ test keyboard_hook::tests::test_vk_code_to_char_conversion ... ok
 test keyboard_hook::tests::test_vk_code_values ... ok
 test keyboard_hook::tests::test_wm_keydown_value ... ok
 
-test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured
 ```
+
+### GUI 窗口測試結果（輸入窗口模式）
+
+```
+running 10 tests
+test gui_window::tests::test_input_window_mode_continuous_input ... ok
+test gui_window::tests::test_window_keyboard_event_escape_clear ... ok
+test gui_window::tests::test_window_keyboard_event_letter_input ... ok
+test gui_window::tests::test_window_keyboard_event_number_selection ... ok
+test gui_window::tests::test_window_keyboard_event_space_selection ... ok
+test gui_window::tests::test_window_keyboard_event_backspace ... ok
+test gui_window::tests::test_window_can_receive_keyboard_input_without_hook ... ok
+test gui_window::tests::test_input_window_mode_independent_input ... ok
+test gui_window::tests::test_gui_window_manager_creation ... ok
+test gui_window::tests::test_gui_window_creation ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured
+```
+
+**重要說明**：
+- `test_window_can_receive_keyboard_input_without_hook` 是核心測試，驗證窗口能夠獨立接收鍵盤輸入，不依賴 `WH_KEYBOARD_LL` 鉤子
+- 這使得輸入法能夠支援使用 Raw Input 的遊戲，因為窗口有焦點時，鍵盤事件直接發送到窗口，繞過 Raw Input 限制
+
+**注意**：測試總數目前為 50 個（包含輸入法邏輯、鍵盤鉤子和 GUI 窗口測試）
 
 ## 鍵盤鉤子功能
 
@@ -98,9 +139,10 @@ test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured
 1. ✅ Windows 低階鍵盤鉤子設置
 2. ✅ 鍵盤事件捕獲和處理
 3. ✅ 字根輸入處理（A-Z，自動轉為小寫，大小寫無分別）
-4. ✅ Shift 鍵切換攔截模式（按下 Shift 後切換到不攔截模式，只攔截 Shift 鍵本身，其他按鍵通過；再按一次恢復攔截模式；切換時會清除現有字根）
-   - **注意**：Shift 鍵只用來切換攔截模式，不影響輸出的大小寫。輸出的大小寫只由 CapsLock 狀態決定（CapsLock OFF → 小寫，CapsLock ON → 大寫）
-   - **英模式 = 不攔截模式**：當 Shift 切換到不攔截模式時，就是英模式，所有按鍵都會通過
+4. ✅ Shift 鍵切換攔截 / 英模式（行為與 Python 版一致）
+   - **單獨按一下 Shift**（期間沒有搭配其他鍵）時，在 Shift 放開時切換模式，並清除現有字根
+   - **Shift + 其他鍵（例如 Shift+1, Shift+2, Shift+A）** 時，不切換模式，事件全部放行給系統
+   - **英模式 = 不攔截模式**：在英模式下，可以正常使用 Shift 做組合鍵（輸出上排符號等）
 5. ✅ 數字鍵選擇候選字（0-9）
 6. ✅ 補碼機制
    - 輸入 `v`：如果當前字根 + `v` 不在字典中，但當前字根存在且候選字數量 >= 2，則選擇候選2（第2個候選字），等待 Space 鍵送出
@@ -115,14 +157,20 @@ test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured
    - **範例**：
      - `"hj" + "v" = "hjv"`（長度 3 < 5，且沒有以 "hjv" 開頭的字根）→ 觸發補碼
      - `"si" + "s" = "sis"`（長度 3 < 5，但有 "sisp" 以 "sis" 開頭）→ 不觸發補碼，讓用戶繼續輸入
-7. ✅ 符號輸入
-   - 輸入符號（例如點號 `.` 或逗號 `,`）：有兩種情況
-     - 如果當前有字根，查找 字根+符號 的組合（例如 `s.` 對應 `？`）
-     - 如果當前沒有字根，查找單獨符號（例如 `.` 對應 `。`，`,` 對應 `，`）
-   - 符號映射在字典中定義，例如：
+7. ✅ 符號輸入（與 Python 版本一致，完全依賴字典表查找）
+   - 輸入符號（例如點號 `.` 或逗號 `,`）：
+     - 如果當前有字根，先查找 字根+符號 的組合（例如 `s.` 對應 `？`，`..` 對應 `：`）
+     - 如果當前沒有字根，先將符號添加到字根中，然後查找組合；如果組合不存在，再查找單獨符號
+   - 符號映射完全依賴字典表（`liu.json`），不進行硬編碼處理
+   - 字典表中的符號映射範例：
      - `s.` 對應 `？`（問號）
      - `.` 對應 `。`（句號）
      - `,` 對應 `，`（逗號）
+     - `..` 對應 `：`（全形冒號）
+     - `.,` 對應 `；`（全形分號）
+   - **連續輸入符號支持**：
+     - 輸入 `..`（兩個點號）→ 自動查找 `".."` → `"："`（全形冒號）
+     - 輸入 `.,`（點號+逗號）→ 自動查找 `".,"` → `"；"`（全形分號）
    - 符號選擇後不會立即送出，需要按 Space 鍵才會送出選中的符號
 8. ✅ 特殊按鍵處理
    - Space：選擇第一個候選字並清除輸入
@@ -131,9 +179,10 @@ test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured
    - Backspace：刪除最後一個字根
    - **Ctrl 組合鍵支援**：當 Ctrl 鍵按下時，所有後續按鍵都會讓事件通過，確保 Ctrl+C、Ctrl+V、Ctrl+A 等組合鍵能正常工作
      - 這與 Python 版本的實現一致，確保在攔截模式下也能正常使用 Ctrl 組合鍵
-8. ✅ Shift 鍵切換攔截模式（切換時會清除現有字根）
-   - Shift 鍵只用來切換攔截模式，不影響輸出的大小寫
-   - 輸出的大小寫只由 CapsLock 狀態決定（CapsLock OFF → 小寫，CapsLock ON → 大寫）
+8. ✅ Shift 鍵切換攔截 / 英模式（行為與 Python 版一致，切換時會清除現有字根）
+   - **單獨按一下 Shift**（期間沒有搭配其他鍵）時，在 Shift 放開時切換模式，並清除現有字根
+   - **Shift + 其他鍵（例如 Shift+1, Shift+2, Shift+A）** 時，不切換模式，事件全部放行給系統
+   - **英模式 = 不攔截模式**：在英模式下，可以正常使用 Shift 做組合鍵（輸出上排符號等）
 9. ✅ F4 鍵退出功能
    - F4 鍵在所有模式下都能退出（無論是攔截模式還是不攔截模式）
    - 退出功能在模式檢查之前處理，確保任何時候都能退出程式
@@ -142,7 +191,12 @@ test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured
    - 通過 WM_COMMAND 消息處理（menu_id = 1001, notification_code = 0）
    - 設置退出標誌（should_quit）並調用 PostQuitMessage(0)
    - 無論是攔截模式還是不攔截模式，都能正常退出程式
-11. ✅ 單一實例鎖定機制
+11. ✅ Ctrl+Space 熱鍵觸發 GUI 狀態列（取代舊的輸入窗口）
+   - 按 Ctrl+Space 可以顯示/隱藏右下角的 GUI 狀態列視窗
+   - Ctrl+Space 是 Windows 系統默認的輸入法切換鍵，遊戲通常會允許它通過
+   - 熱鍵檢測優先級最高，在模式檢查之前處理
+
+12. ✅ 單一實例鎖定機制
    - 使用 `fs2::FileExt::try_lock_exclusive()` 實現文件鎖定
    - 程序啟動時創建 `UCLLIU.lock` 文件並獲取獨占鎖
    - 如果已有實例在運行，新實例會檢測到鎖已被持有，並立即退出
@@ -173,7 +227,13 @@ cargo test
 # 只執行輸入法邏輯測試
 cargo test input_method::tests
 
+# 只執行 GUI 窗口測試（輸入窗口模式）
+cargo test gui_window::tests
+
 # 執行測試並顯示輸出
 cargo test -- --nocapture
+
+# 執行所有測試（包括需要 GUI 的測試）
+cargo test -- --ignored
 ```
 

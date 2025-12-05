@@ -77,9 +77,14 @@ impl InputMethodState {
                 self.candidates.len()
             );
         } else {
+            // 查不到字時，不主動清除字根，只是標記「沒有候選字」
+            // 真正清除動作延後到使用者按下 Space 鍵時處理（與 Python 版一致）
             self.candidates.clear();
             self.candidate_index = 0;
-            debug!("查詢字根 '{}' 未找到候選字", self.current_code);
+            debug!(
+                "查詢字根 '{}' 未找到候選字，等待 Space 鍵時清除字根",
+                self.current_code
+            );
         }
     }
 
@@ -346,6 +351,14 @@ impl InputMethodProcessor {
             self.state.clear();
             Some(result)
         } else {
+            // 沒有候選字時，如果還有字根，按 Space 代表「放棄這組字根」→ 清除
+            if !self.state.current_code.is_empty() {
+                debug!(
+                    "Space: 當前字根 '{}' 沒有候選字，清除字根（與 Python 版一致）",
+                    self.state.current_code
+                );
+                self.state.clear();
+            }
             None
         }
     }
@@ -642,16 +655,22 @@ mod tests {
         let (_, _) = processor.handle_code_input('z');
         
         let state = processor.get_state();
+        // 查不到字時不會立刻清除字根，只是沒有候選字
         assert_eq!(state.current_code, "xyz");
         assert_eq!(state.candidates.len(), 0);
         
         // Space 應該返回 None
         let result = processor.handle_space();
         assert_eq!(result, None);
-        
-        // Enter 應該返回字根
+
+        // 按下 Space 後，字根應該被清除
+        let state_after = processor.get_state();
+        assert_eq!(state_after.current_code, "");
+        assert_eq!(state_after.candidates.len(), 0);
+
+        // Enter 也應該返回 None（因為字根已被清除）
         let result = processor.handle_enter();
-        assert_eq!(result, Some("xyz".to_string()));
+        assert_eq!(result, None);
     }
 
     #[test]
